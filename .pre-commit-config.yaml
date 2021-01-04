@@ -1,0 +1,22 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v2.3.0
+  hooks:
+  - id: check-yaml
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+- repo: https://gitlab.com/pycqa/flake8
+  rev: 3.7.9
+  hooks:
+  - id: flake8
+- repo: git://github.com/asottile/reorder_python_imports
+  rev: v1.3.4
+  hooks:
+    - id: reorder-python-imports
+      language_version: 'python3.8'
+      args:
+         - --py3-plus
+- repo: https://github.com/petalmd/dockerfile-pre-commit
+  rev: v1.0  # Use the revision rev you want to point at
+  hooks:
+  - id: dockerlint

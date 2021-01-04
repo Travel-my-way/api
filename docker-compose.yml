@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  rabbitmq:
+    image: 'bitnami/rabbitmq:latest'
+    ports:
+      - "5672:5672"
+
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "6379:6379"
+
+  redisinsight:
+    image: 'redislabs/redisinsight:latest'
+    ports:
+    - "8001:8001"
+    links:
+      - redis
+
+  broker:
+    build:
+      context: .
+      dockerfile: ./broker/Dockerfile
+    environment: &common-env
+      - RABMQ_RABBITMQ_URL=amqp://user:bitnami@rabbitmq:5672/
+      - RABMQ_SEND_EXCHANGE_NAME=tmw
+      - RABMQ_SEND_EXCHANGE_TYPE=topic
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - rabbitmq
+
+  trainline:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=trainline
+    environment: *common-env
+    depends_on:
+      - rabbitmq
+
+  fake:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=fake
+    environment: *common-env
+    depends_on:
+      - rabbitmq
+

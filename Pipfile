@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+flask = "==1.1.2"
+flask-restful = "==0.3.8"
+loguru = "==0.5.3"
+kombu = "==5.0.2"
+python-dotenv = "==0.15.0"
+redis = "==3.5.3"
+flask-redis = "==0.4.0"
+
+[requires]
+python_version = "3.8"
+
+[scripts]
+broker = "python -m broker"
+flask = "flask run"
