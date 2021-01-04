@@ -49,4 +49,3 @@ services:
     environment: *common-env
     depends_on:
       - rabbitmq
-

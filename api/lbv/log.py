@@ -1,5 +1,6 @@
-from loguru import logger
 import logging
+
+from loguru import logger
 
 
 class InterceptHandler(logging.Handler):

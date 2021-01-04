@@ -4,14 +4,16 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config(object):
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'SUPER-SECRET'
+    SECRET_KEY = os.environ.get("SECRET_KEY") or "SUPER-SECRET"
     LOGFILE = "log.log"
 
     # Redis
     REDIS_URL = os.getenv("REDIS_URL")
 
     # Default rabbitMQ setup
-    RABMQ_RABBITMQ_URL = os.getenv("RABMQ_RABBITMQ_URL", default="amqp://user:bitnami@localhost:5672/")
+    RABMQ_RABBITMQ_URL = os.getenv(
+        "RABMQ_RABBITMQ_URL", default="amqp://user:bitnami@localhost:5672/"
+    )
     RABMQ_SEND_EXCHANGE_NAME = os.getenv("RABMQ_SEND_EXCHANGE_NAME", default="tmw")
     RABMQ_SEND_EXCHANGE_TYPE = os.getenv("RABMQ_SEND_EXCHANGE_TYPE", default="topic")
 
@@ -21,7 +23,7 @@ class Config(object):
 class DevelopmentConfig(Config):
     DEBUG = True
     LOG_BACKTRACE = True
-    LOG_LEVEL = 'DEBUG'
+    LOG_LEVEL = "DEBUG"
     LOGFILE = "dev.log"
 
     RABMQ_REPLY_EXPIRES = 180
@@ -29,11 +31,11 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     LOG_BACKTRACE = False
-    LOG_LEVEL = 'INFO'
+    LOG_LEVEL = "INFO"
 
 
 config = {
-    'dev': DevelopmentConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
+    "dev": DevelopmentConfig,
+    "production": ProductionConfig,
+    "default": DevelopmentConfig,
 }
