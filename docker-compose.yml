@@ -1,6 +1,19 @@
-version: "3"
+version: "3.6"
 
 services:
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    environment: &common-env
+      - FLASK_APP=api.lbv:create_app('docker-compose')
+      - RABMQ_RABBITMQ_URL=amqp://user:bitnami@rabbitmq:5672/
+      - RABMQ_SEND_EXCHANGE_NAME=tmw
+      - RABMQ_SEND_EXCHANGE_TYPE=topic
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "5000:5000"
+
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
     ports:
@@ -24,11 +37,7 @@ services:
     build:
       context: .
       dockerfile: ./broker/Dockerfile
-    environment: &common-env
-      - RABMQ_RABBITMQ_URL=amqp://user:bitnami@rabbitmq:5672/
-      - RABMQ_SEND_EXCHANGE_NAME=tmw
-      - RABMQ_SEND_EXCHANGE_TYPE=topic
-      - REDIS_URL=redis://redis:6379
+    environment: *common-env
     depends_on:
       - rabbitmq
 

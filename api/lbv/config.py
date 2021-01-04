@@ -1,4 +1,5 @@
 import os
+import sys
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -20,11 +21,19 @@ class Config(object):
     RABMQ_REPLY_EXPIRES = os.getenv("RABMQ_REPLY_EXPIRES", default=30)
 
 
+class DockerComposeConfig(Config):
+    DEBUG = True
+    LOG_BACKTRACE = True
+    LOG_LEVEL = "DEBUG"
+    RABMQ_RABBITMQ_URL = "amqp://user:bitnami@rabbitmq:5672/"
+    REDIS_URL = "redis://redis:6379"
+
+
 class DevelopmentConfig(Config):
     DEBUG = True
     LOG_BACKTRACE = True
     LOG_LEVEL = "DEBUG"
-    LOGFILE = "dev.log"
+    LOGFILE = sys.stderr
 
     RABMQ_REPLY_EXPIRES = 180
 
@@ -36,6 +45,7 @@ class ProductionConfig(Config):
 
 config = {
     "dev": DevelopmentConfig,
+    "docker-compose": DockerComposeConfig,
     "production": ProductionConfig,
     "default": DevelopmentConfig,
 }

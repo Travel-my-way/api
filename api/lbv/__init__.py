@@ -14,7 +14,7 @@ def create_app(env):
     app.config.from_object(config[env])
 
     # Log to loguru
-    logger.start(
+    logger.add(
         app.config["LOGFILE"],
         level=app.config["LOG_LEVEL"],
         format="{time} {level} {message}",
