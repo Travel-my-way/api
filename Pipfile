@@ -14,6 +14,7 @@ kombu = "==5.0.2"
 python-dotenv = "==0.15.0"
 redis = "==3.5.3"
 flask-redis = "==0.4.0"
+environs = "==9.3.0"
 
 [requires]
 python_version = "3.8"

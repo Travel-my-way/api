@@ -1,8 +1,5 @@
 import json
-import os
-from typing import NoReturn
-
-from kombu import Exchange
+from kombu import Exchange, Connection
 from kombu import Queue
 from kombu.mixins import ConsumerMixin
 from loguru import logger
@@ -10,12 +7,12 @@ from redis import Redis
 
 
 class Client(ConsumerMixin):
-    def __init__(self, connection):
+    def __init__(self, connection: Connection, redis_url: str) -> None:
         self.connection = connection
 
-        self.redis = Redis.from_url(os.getenv("REDIS_URL"))
+        self.redis = Redis.from_url(redis_url)
 
-    def get_consumers(self, Consumer, channel):
+    def get_consumers(self, Consumer, channel) -> list:
         return [
             Consumer(
                 [Queue("results", Exchange("results"), routing_key="results")],
@@ -24,7 +21,7 @@ class Client(ConsumerMixin):
             ),
         ]
 
-    def on_message(self, body, message):
+    def on_message(self, body, message) -> None:
         correlation_id = message.properties["correlation_id"]
         with logger.contextualize(corrid=correlation_id):
             set_name = "request_id:{} type:partial_results".format(correlation_id)

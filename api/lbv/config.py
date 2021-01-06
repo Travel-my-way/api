@@ -6,7 +6,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     SECRET_KEY = os.environ.get("SECRET_KEY") or "SUPER-SECRET"
-    LOGFILE = "log.log"
+    LOGFILE = sys.stderr
 
     # Redis
     REDIS_URL = os.getenv("REDIS_URL")
@@ -33,7 +33,6 @@ class DevelopmentConfig(Config):
     DEBUG = True
     LOG_BACKTRACE = True
     LOG_LEVEL = "DEBUG"
-    LOGFILE = sys.stderr
 
     RABMQ_REPLY_EXPIRES = 180
 

@@ -19,7 +19,6 @@ def create_app(env):
         level=app.config["LOG_LEVEL"],
         format="{time} {level} {message}",
         backtrace=app.config["LOG_BACKTRACE"],
-        rotation="25 MB",
     )
     app.logger.addHandler(InterceptHandler())
 
