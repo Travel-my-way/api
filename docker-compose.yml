@@ -58,3 +58,12 @@ services:
     environment: *common-env
     depends_on:
       - rabbitmq
+
+  ouibus:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=ouibus
+    environment: *common-env
+    depends_on:
+      - rabbitmq
