@@ -8,6 +8,16 @@ Ce repo contient le code pour faire fonctionner l'API BonVoyage en local (docker
 
 Si vous développez sur l'API, vous devez aussi avoir installé [pipenv](https://pipenv.pypa.io/en/latest/) et avoir python 3.8 disponible ([pyenv](https://github.com/pyenv/pyenv) vous aidera sur ce coup)
 
+## Composants docker-compose
+
+### PostgreSQL
+
+Une base PG avec l'extension [PostGIS](https://postgis.net/) est déployée dans le docker-compose et aussi accessible en local sur le port 5432.
+
+Les identifiants / mot de passe / ID de la base sont disponibles dans le fichier `docker-compose.yml`.
+
+Cette base est aussi linkée dans les divers composants.
+
 ## Lancer l'API
 
 ### Utilisation uniquement (cas du front)

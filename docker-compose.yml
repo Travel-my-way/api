@@ -1,5 +1,8 @@
 version: "3.6"
 
+volumes:
+  pgdata:
+
 services:
   api:
     build:
@@ -13,6 +16,18 @@ services:
       - REDIS_URL=redis://redis:6379
     ports:
       - "5000:5000"
+
+  database:
+    image: 'postgis/postgis:13-3.1-alpine'
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=pg_password
+      - POSTGRES_USER=bonvoyage_usr
+      - POSTGRES_DB=bonvoyage
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
@@ -38,6 +53,9 @@ services:
       context: .
       dockerfile: ./broker/Dockerfile
     environment: *common-env
+    links:
+      - database
+      - rabbitmq
     depends_on:
       - rabbitmq
 
@@ -47,6 +65,9 @@ services:
       dockerfile: ./worker/Dockerfile
     command: --name=trainline
     environment: *common-env
+    links:
+      - database
+      - rabbitmq
     depends_on:
       - rabbitmq
 
@@ -56,6 +77,9 @@ services:
       dockerfile: ./worker/Dockerfile
     command: --name=fake
     environment: *common-env
+    links:
+      - database
+      - rabbitmq
     depends_on:
       - rabbitmq
 
@@ -65,5 +89,8 @@ services:
       dockerfile: ./worker/Dockerfile
     command: --name=ouibus
     environment: *common-env
+    links:
+      - database
+      - rabbitmq
     depends_on:
       - rabbitmq
