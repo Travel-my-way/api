@@ -76,3 +76,12 @@ services:
     environment: *common-env
     depends_on:
     - rabbitmq
+
+  ors:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=ors
+    environment: *common-env
+    depends_on:
+    - rabbitmq

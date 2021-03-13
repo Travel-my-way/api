@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "29f2f1ab2afb55267da146e1f1ae33ccac12a6799e925cd1dc2df661e7ae0933"
+            "sha256": "456cbb3d0876b7afd3e103baf282cea8ca9e5dada74362f43da3a9292f11125e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -235,6 +235,14 @@
                 "sha256:ecb5b74c702358cdc21268ff4c37f7466357871f53a30e6f84c686952bef16a9"
             ],
             "version": "==1.20.1"
+        },
+        "openrouteservice": {
+            "hashes": [
+                "sha256:3b329d692194dad5f3b8b899f98a80d2aa6788c5fe410af38eaae55958f05511",
+                "sha256:fffbeeec19d19a06900e29a96a20a3710c2800b9418d8b85219718fe97e3d769"
+            ],
+            "index": "pypi",
+            "version": "==2.2.3"
         },
         "pandas": {
             "hashes": [
