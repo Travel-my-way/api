@@ -1,16 +1,14 @@
-import pandas as pd
 import requests
-import copy
-
+import pandas as pd
 from datetime import datetime as dt, timedelta
 from geopy.distance import distance
-
+from worker import tmw_api_keys
+from worker import TMW as tmw
+from worker import constants
+import copy
 from loguru import logger
 
 from ..base import BaseWorker
-
-from .. import TMW as tmw
-from .. import constants
 
 
 def pandas_explode(df, column_to_explode):
@@ -55,7 +53,7 @@ def pandas_explode(df, column_to_explode):
     return return_df
 
 
-# Get all bus stations available for OuiBus / Needs to be updated regularly
+# Get all bus stations available for ouibus / Needs to be updated regularly
 def update_stop_list():
     headers = {
         'Authorization': 'Token rvZD7TlqePBokwl0T02Onw',
@@ -91,8 +89,9 @@ def get_stops_from_geo_loc(geoloc_origin, geoloc_destination, ouibus_db, max_dis
                            ((ouibus_db.longitude-geoloc_origin[1])**2<0.6)) |
                               (((ouibus_db.latitude-geoloc_destination[0])**2<0.6) &
                                ((ouibus_db.longitude-geoloc_destination[1])**2<0.6))].copy()
-
     # compute proxi for distance (since we only need to compare no need to take the earth curve into account...)
+    if stops_tmp.empty:
+        return None
     stops_tmp['distance_origin'] = stops_tmp.apply(
         lambda x: (x.latitude - geoloc_origin[0])**2 + (x.longitude-geoloc_origin[1])**2, axis=1)
     stops_tmp['distance_destination'] = stops_tmp.apply(
@@ -107,12 +106,12 @@ def get_stops_from_geo_loc(geoloc_origin, geoloc_destination, ouibus_db, max_dis
 def search_for_all_fares(date, origin_id, destination_id, passengers):
     """
     This function takes in all the relevant information for the API call and returns a
-        raw dataframe containing all the information from OuiBus API
+        raw dataframe containing all the information from ouibus API
      """
     # format date as yyy-mm-dd
     date_formated = str(date)[0:10]
     headers = {
-        'Authorization': 'Token ' + 'rvZD7TlqePBokwl0T02Onw',
+        'Authorization': 'Token ' + tmw_api_keys.OUIBUS_API_KEY,
         'Content-Type': 'application/json',
     }
     data = {
@@ -141,7 +140,7 @@ def search_for_all_fares(date, origin_id, destination_id, passengers):
 
 def ouibus_journeys(df_response, _id=0):
     """
-    This function takes in a DF with detailled info about all the OuiBus trips
+    This function takes in a DF with detailled info about all the ouibus trips
     It returns a list of TMW journey objects
         """
     # affect a price to each leg
@@ -189,7 +188,7 @@ def ouibus_journeys(df_response, _id=0):
             local_emissions = 0
             step = tmw.Journey_step(i,
                                     _type=constants.TYPE_COACH,
-                                    label=f'Coach OuiBus {leg.bus_number} to {leg.short_name_destination_seg}',
+                                    label=f'Coach ouibus {leg.bus_number} to {leg.short_name_destination_seg}',
                                     distance_m=local_distance_m,
                                     duration_s=(leg.arrival_seg - leg.departure_seg).seconds,
                                     price_EUR=[leg.price_step],
@@ -200,7 +199,7 @@ def ouibus_journeys(df_response, _id=0):
                                     arrival_stop_name=leg.short_name_destination_seg,
                                     departure_date=leg.departure_seg,
                                     arrival_date=leg.arrival_seg,
-                                    trip_code='OuiBus ' + leg.bus_number,
+                                    trip_code='ouibus ' + leg.bus_number,
                                     geojson=[],
                                     )
             lst_sections.append(step)
@@ -247,7 +246,7 @@ def ouibus_journeys(df_response, _id=0):
 
 def format_ouibus_response(df_response):
     """
-        This function takes in the raw OuiBus API response (previously converted into a DF)
+        This function takes in the raw ouibus API response (previously converted into a DF)
         It return a more enriched dataframe with all the needed information
     """
     # enrich information
@@ -283,8 +282,9 @@ class OuiBusWorker(BaseWorker):
 
     def execute(self, message):
         # self.ouibus_database = update_stop_list()
+
         logger.info("Got message: {}", message)
-        logger.info("Got message: {}", len(self.ouibus_database))
+        logger.info(f'length of ouibus_database = {len(self.ouibus_database)}')
 
         geoloc_dep = message.payload['from'].split(',')
         geoloc_dep[0] = float(geoloc_dep[0])
@@ -294,8 +294,9 @@ class OuiBusWorker(BaseWorker):
         geoloc_arr[1] = float(geoloc_arr[1])
 
         all_stops = get_stops_from_geo_loc(geoloc_dep, geoloc_arr, self.ouibus_database)
+        if not all_stops:
+            return {"content": "no trip found on oubus", "demo": 0}
 
-        logger.info(f'we got the stops ----------')
         origin_meta_gare_ids = all_stops['origin'].id_meta_gare.unique()
         destination_meta_gare_ids = all_stops['destination'].id_meta_gare.unique()
         # Call API for all scenarios
@@ -306,13 +307,13 @@ class OuiBusWorker(BaseWorker):
                 if origin_meta_gare_id != destination_meta_gare_id:
                     all_fares = search_for_all_fares(message.payload['start'], origin_meta_gare_id,
                                                      destination_meta_gare_id,
-                                                     [{"id": 1,  "age": 30,  "price_currency": "EUR"}])
+                                                     [{"id": 1, "age": 30, "price_currency": "EUR"}])
                     all_trips = all_trips.append(all_fares)
 
-        # Enrich with stops info
+         # Enrich with stops info
         if all_trips.empty:
-            logger.info('no trip found from OuiBus')
-            return {"content": "ohai", "demo": 0}
+            logger.info('no trip found from ouibus')
+            return {"content": "no trip found on oubus", "demo": 0}
 
         all_trips = all_trips.merge(self.ouibus_database[['id', 'geoloc', 'short_name']],
                                     left_on='origin_id', right_on='id', suffixes=['', '_origin'])
@@ -320,9 +321,6 @@ class OuiBusWorker(BaseWorker):
                                     left_on='destination_id', right_on='id', suffixes=['', '_destination'])
 
         all_trips = format_ouibus_response(all_trips[all_trips.available])
-        logger.info(f"ouiouoi busbus")
-        logger.info(f"ouibus data base len {len(self.ouibus_database)}")
-        return ouibus_journeys(all_trips)
 
-    # Get all bus stations available for OuiBus / Needs to be updated regularly
+        return ouibus_journeys(all_trips)
 

@@ -2,17 +2,6 @@
 INITIATE CLASSES
 """
 from datetime import datetime as dt, timedelta
-import folium
-from threading import Thread
-from app import Trainline
-from app import Skyscanner
-from app import OuiBus
-from app import Navitia
-from app import ORS
-from app import BlablaCar
-from app import Ferries
-from app import Planes
-import time
 
 class Journey:
     def __init__(self, _id, departure_date=dt.now(), arrival_date=dt.now(), booking_link='', steps=[]):
@@ -72,16 +61,6 @@ class Journey:
         self.total_gCO2 = sum(filter(None,[step.gCO2 for step in self.steps]))
         self.bike_friendly = all(step.bike_friendly for step in self.steps)
         return self
-
-    def plot_map(self, center=(48.864716,2.349014), tiles = 'Stamen Toner', zoom_start = 4, _map=None):
-        _map = init_map(center, zoom_start) if _map == None else _map
-
-        for step in self.steps:
-            try:
-                step.plot_map(center=center, _map=_map)
-            except:
-                print('ERROR plot map: step id: {} / type: {}'.format(step.id, step.type))
-        return _map
 
     def add_steps(self, steps_to_add, start_end=True):
         # compute total duration of steps to update arrival and departure times
@@ -146,13 +125,6 @@ class Journey_step:
                 }
         return json
 
-    def plot_map(self, center=(48.864716,2.349014), zoom_start=4, _map=None):
-        _map = init_map(center, zoom_start) if _map == None else _map
-
-        folium.features.GeoJson(data=self.geojson,
-                                name=self.label,
-                                overlay=True).add_to(_map)
-        return _map
 
 class Query:
     def __init__(self, _id, start_point, end_point, departure_date=None):
@@ -168,197 +140,4 @@ class Query:
                  'departure_date': str(self.departure_date),
                 }
         return json
-
-    def plot_navitia_coverage(self, center=(48.864716,2.349014), zoom_start = 4,_map=None):
-        _map = init_map(center, zoom_start) if _map == None else _map
-
-        _map = self.start_point.plot_navitia_coverage(_map=_map)
-        _map = self.end_point.plot_navitia_coverage(_map=_map)
-        return _map
-
-class Point:
-    def __init__(self, address, near=False):
-        self.address = address
-        self.coord = geocode_address(address)  # [lon,lat]
-        self.navitia = self.navitia_coverage(self.coord[0], self.coord[1]) # [lon,lat]
-        self.near_flag = near
-        if near == True:
-            self.near_airports = None # TO BE COMPLETED --> [point, point...]
-            self.near_train_stations = None # TO BE COMPLETED --> [point, point...]
-            self.near_bus_stations = None # TO BE COMPLETED --> [point, point...]
-
-    def to_json(self):
-        json =  {
-                    'address':self.address,
-                    'coord':self.coord,
-                    'navitia':self.navitia,
-                }
-        if self.near_flag == True:
-            json['near_airports'] = self.near_airports
-            json['near_train_stations'] = self.near_train_stations
-            json['near_bus_stations'] = self.near_bus_stations
-        return json
-
-    def navitia_coverage(self, lon, lat):
-        coverage = navitia_coverage_gpspoint(lon, lat)
-        if coverage == False:
-            return False
-
-        cov_json = {
-            'name':coverage['regions'][0]['id'],
-            'polygon':coverage['regions'][0]['shape'],
-        }
-        return cov_json
-
-    def plot_navitia_coverage(self, center=(48.864716,2.349014), zoom_start = 4,_map=None):
-        _map = init_map(center, zoom_start) if _map == None else _map
-
-        if self.navitia != False:
-            folium.vector_layers.Polygon(locations=self.navitia['polygon'],
-                                tooltip=self.navitia['name'],
-                                ).add_to(_map)
-            folium.map.Marker(location=self.coord[::-1],
-                                tooltip=self.address).add_to(_map)
-        return _map
-
-
-class ThreadComputeJourney(Thread):
-    """
-    The class helps parallelize the computation journeys
-    """
-    def __init__(self, api, query, distance_car=None):
-        Thread.__init__(self)
-        self._return = None
-        self.api = api
-        self.query = query
-        self.distance_car = distance_car
-        self.run_time = 0
-
-    def run(self):
-        if self.api == 'OuiBus':
-            time_launch = time.perf_counter()
-            journeys = OuiBus.main(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'Skyscanner':
-            time_launch = time.perf_counter()
-            journeys = Skyscanner.main(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'Planes':
-            time_launch = time.perf_counter()
-            journeys = Planes.main(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'Trainline':
-            time_launch = time.perf_counter()
-            journeys = Trainline.main(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'ORS':
-            time_launch = time.perf_counter()
-            journeys = ORS.ORS_query_directions(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'BlaBlaCar':
-            time_launch = time.perf_counter()
-            journeys = BlablaCar.main(self.query)
-            self.run_time = time.perf_counter() - time_launch
-        elif self.api == 'Ferry':
-            time_launch = time.perf_counter()
-            journeys = Ferries.main(self.query, self.distance_car)
-            self.run_time = time.perf_counter() - time_launch
-        else:
-            time_launch = time.perf_counter()
-            journeys = list()
-            self.run_time = time.perf_counter() - time_launch
-        self._return = journeys
-
-    def join(self):
-        Thread.join(self)
-        return self._return, self.run_time
-
-
-class ThreadNavitiaCall(Thread):
-    """
-    The class helps parallelize the computation journeys
-    """
-    def __init__(self, query):
-        Thread.__init__(self)
-        self._return = None
-        self.query = query
-        self.run_time = 0
-
-    def run(self):
-        journey = Navitia.navitia_query_directions(self.query)
-        if journey is None:
-            # If Navitia could not give a response, we ask ors to do a car trip
-            journey = list()
-            journey.append(ORS.ORS_query_directions(self.query))
-        self._return = journey
-
-    def join(self):
-        Thread.join(self)
-        return self._return, self.query
-
-
-"""
-BASIC FUNCTIONS
-"""
-
-
-def init_map(center, zoom_start, tiles = 'Stamen Toner'):
-        map_params = {'tiles':tiles,
-              'location':center,
-              'zoom_start': zoom_start}
-        _map = folium.Map(**map_params)
-        return _map
-
-
-def geocode_address(address):
-    '''
-    address: string
-    coord : [lon, lat]
-    '''
-    ORS_client = start_ORS_client()
-    lon, lat = ORS_client.pelias_search(address,size=1)['features'][0]['geometry']['coordinates']
-    return lon, lat
-
-
-def get_CO2(travel_type, distance, param={}):
-    # Calculate CO2 emissions based on travel_type and distance
-    # Import csv database (ADEME)
-    # param = {col:value}
-    """
-    import pandas as pd
-    EF_filepath = 'EmissionFactor.csv'
-    df_EF = pd.read_csv(EF_filepath,sep=';')
-    
-    for col in param.keys():
-        df_EF = df_EF[df_EF[col] == param[col]]
-
-    print(df_EF)
-    print('ERROR get_CO2() --> param variable did not ') if df_EF.size!=1 else True
-    EF = df_EF[value]
-    """
-
-    dict_EF = {             # Emision factor (EF)
-        'walk':0.0,
-        'wait':0.0,
-        'car':0.255,
-        'bus':0.167,
-        'metro':0.006,
-        'tram':0.006,
-        'train':0.037,
-        'TGV':0.00369,
-        'plane':0.23,
-    }
-    try:
-        EF = dict_EF[travel_type]
-    except:
-        print('ERROR: travel_type "{}" is not listed in Emission Factor.'.format(travel_type))
-        print('Returning 0.0 kgCO2/passenger')
-        return 0
-    emission = EF * distance
-    return emission
-
-
-
-
-
 
