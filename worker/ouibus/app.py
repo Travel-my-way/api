@@ -56,7 +56,7 @@ def pandas_explode(df, column_to_explode):
 # Get all bus stations available for ouibus / Needs to be updated regularly
 def update_stop_list():
     headers = {
-        'Authorization': 'Token rvZD7TlqePBokwl0T02Onw',
+        'Authorization': 'Token ' + tmw_api_keys.OUIBUS_API_KEY,
     }
     # Get v1 stops (all actual stops)
     logger.info('start update')
@@ -244,7 +244,7 @@ def ouibus_journeys(df_response, _id=0):
     return lst_journeys
 
 
-def format_ouibus_response(df_response):
+def format_ouibus_response(df_response, ouibus_db):
     """
         This function takes in the raw ouibus API response (previously converted into a DF)
         It return a more enriched dataframe with all the needed information
@@ -260,9 +260,9 @@ def format_ouibus_response(df_response):
     response_rich['departure_seg'] = pd.to_datetime(response_rich.apply(lambda x: x['legs']['departure'], axis=1))
     response_rich['arrival_seg'] = pd.to_datetime(response_rich.apply(lambda x: x['legs']['arrival'], axis=1))
     response_rich['bus_number'] = response_rich.apply(lambda x: x['legs']['bus_number'], axis=1)
-    response_rich = response_rich.merge(_ALL_BUS_STOPS[['id', 'geoloc', 'short_name']], left_on='origin_id_seg',
+    response_rich = response_rich.merge(ouibus_db[['id', 'geoloc', 'short_name']], left_on='origin_id_seg',
                                         right_on='id', suffixes=['', '_origin_seg'])
-    response_rich = response_rich.merge(_ALL_BUS_STOPS[['id', 'geoloc', 'short_name']], left_on='destination_id_seg',
+    response_rich = response_rich.merge(ouibus_db[['id', 'geoloc', 'short_name']], left_on='destination_id_seg',
                                         right_on='id', suffixes=['', '_destination_seg'])
     # filter only most relevant itineraries (2 cheapest + 2 fastest)
     limit = min(2, response_rich.shape[0])
@@ -320,7 +320,7 @@ class OuiBusWorker(BaseWorker):
         all_trips = all_trips.merge(self.ouibus_database[['id', 'geoloc', 'short_name']],
                                     left_on='destination_id', right_on='id', suffixes=['', '_destination'])
 
-        all_trips = format_ouibus_response(all_trips[all_trips.available])
+        all_trips = format_ouibus_response(all_trips[all_trips.available], self.ouibus_database)
 
         return ouibus_journeys(all_trips)
 
