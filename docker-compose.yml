@@ -94,3 +94,27 @@ services:
       - rabbitmq
     depends_on:
       - rabbitmq
+
+  blablacar:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=blablacar
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq
+
+  ors:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=ors
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq
