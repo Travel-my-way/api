@@ -103,7 +103,8 @@ class Journey_step:
         self.arrival_date = arrival_date
         self.trip_code = trip_code #AF350 / TGV8342 / Métro Ligne 2 ect...
         self.bike_friendly = bike_friendly
-        self.transportation_final_destination = transportation_final_destination # Direction of metro / final stop on train ect..
+        # Direction of metro / final stop on train ect..
+        self.transportation_final_destination = transportation_final_destination
         self.geojson = geojson
 
     def to_json(self):
@@ -140,4 +141,3 @@ class Query:
                  'departure_date': str(self.departure_date),
                 }
         return json
-

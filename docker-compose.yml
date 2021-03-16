@@ -95,11 +95,26 @@ services:
     depends_on:
       - rabbitmq
 
-  ouibus:
+  blablacar:
     build:
       context: .
       dockerfile: ./worker/Dockerfile
-    command: --name=ouibus
+    command: --name=blablacar
     environment: *common-env
-    depends_on:
+    links:
+      - database
       - rabbitmq
+    depends_on:
+    - rabbitmq
+
+  ors:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=ors
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq
