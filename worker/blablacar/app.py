@@ -242,7 +242,7 @@ class BlaBlaCarWorker(BaseWorker):
         all_trips = search_for_trips(message.payload['start'], geoloc_dep, geoloc_arr)
 
         # logger.info(f'len the trips {len(all_trips)}')
-        if not all_trips:
+        if all_trips is not None:
             return {"content": "no blalabla trips were found ", "demo": 0}
 
         blablacar_journeys = blablacar_journey(all_trips)
