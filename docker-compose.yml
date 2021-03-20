@@ -118,3 +118,27 @@ services:
       - rabbitmq
     depends_on:
     - rabbitmq
+
+  ferries:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=ferries
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq
+
+  kombo:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=kombo
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq
