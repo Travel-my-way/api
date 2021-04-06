@@ -1,16 +1,16 @@
 from loguru import logger
 import requests
 import pandas as pd
-from datetime import datetime as dt, timedelta
+from datetime import timedelta
 import copy
 import time
 from geopy.distance import distance
 
 from ..base import BaseWorker
 
-from .. import TMW as tmw
 from .. import tmw_api_keys
 from .. import constants
+from .. import TMW
 
 
 def pandas_explode(df, column_to_explode):
@@ -132,7 +132,6 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1):
         'token': tmw_api_keys.KOMBO_API_KEY,
     }
     r = requests.get(f'https://turing.kombo.co/search/{id_dep}/{id_arr}/{date}/{nb_passengers}', headers=headers)
-    logger.info(f'https://turing.kombo.co/search/{id_dep}/{id_arr}/{date}/{nb_passengers}')
     if r.status_code == 200:
         pollkey = r.json()['key']
         # print('paul k ok')
@@ -141,11 +140,8 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1):
         return pd.DataFrame()
     time.sleep(0.5)
     response = requests.get(f'https://turing.kombo.co/pollSearch/{pollkey}', headers=headers)
-    logger.info('tout va bien wesh')
     trips = pd.DataFrame.from_dict(response.json()['trips'])
-    logger.info('tout va bien wesh wesh')
     stations = dataframize(response.json()['dependencies']['stations'])
-    logger.info('tout va bien wesh wesh wesh')
     companies = dataframize(response.json()['dependencies']['companies'])
     while not response.json()['completed']:
         time.sleep(0.5)
@@ -158,10 +154,6 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1):
         return pd.DataFrame()
     stations = stations.drop_duplicates()
     companies = companies.drop_duplicates()
-    print(trips.shape)
-    print(stations.shape)
-    print(companies.shape)
-
     trips_clean = enrich_trips(trips, stations, companies)
     return trips_clean
 
@@ -172,10 +164,6 @@ def kombo_journey(df_response, passengers=1):
         It returns a list of TMW journey objects
     """
     # affect a price to each leg (otherwise we would multiply the price by the number of legs
-    logger.info('hekjvba:kqbvrkb:qkvtebrb')
-    logger.info(df_response)
-    logger.info(df_response.columns)
-    logger.info(df_response.shape)
     df_response['price_step'] = df_response.price / (df_response.segments_nb * 100)
 
     # Compute distance for each leg
@@ -191,6 +179,11 @@ def kombo_journey(df_response, passengers=1):
         'flight': 90 * 60,
     }
     # all itineraries :
+    df_response['latitude'] = df_response.apply(lambda x: float(x['latitude']), axis=1)
+    df_response['longitude'] = df_response.apply(lambda x: float(x['longitude']), axis=1)
+    df_response['latitude_arr'] = df_response.apply(lambda x: float(x['latitude_arr']), axis=1)
+    df_response['longitude_arr'] = df_response.apply(lambda x: float(x['longitude_arr']), axis=1)
+
     # print(f'nb itinerary : {df_response.id_global.nunique()}')
     for tripId in df_response.tripId.unique():
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
@@ -205,20 +198,20 @@ def kombo_journey(df_response, passengers=1):
 
         station_wait = tranportation_mean_wait[itinerary.transportType.iloc[0]]
         # We add a waiting period at the station of 15 minutes
-        step = tmw.Journey_step(i,
-                            _type='Wait',
-                            label=f'Arrive at the station {station_wait} before departure',
-                            distance_m=0,
-                            duration_s=station_wait,
-                            price_EUR=[0],
-                            gCO2=0,
-                            departure_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
-                            arrival_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
-                            departure_date=itinerary.departureTime[0] - timedelta(seconds=station_wait),
-                            arrival_date=itinerary.departureTime[0],
-                            bike_friendly=False,
-                            geojson=[],
-                            )
+        step = TMW.Journey_step(i,
+                                _type=constants.TYPE_WAIT,
+                                label=f'Arrive at the station {station_wait}s before departure',
+                                distance_m=0,
+                                duration_s=station_wait,
+                                price_EUR=[0],
+                                gCO2=0,
+                                departure_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
+                                arrival_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
+                                departure_date=int((itinerary.departureTime[0] - timedelta(seconds=station_wait)).timestamp()),
+                                arrival_date=int(itinerary.departureTime[0].timestamp()),
+                                bike_friendly=False,
+                                geojson=[],
+                                )
 
         lst_sections.append(step)
         i = i + 1
@@ -227,56 +220,57 @@ def kombo_journey(df_response, passengers=1):
             local_distance_m = distance([leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]).m
             local_transportation_type = leg.transportType
             local_emissions = 0
-            step = tmw.Journey_step(i,
-                                _type=local_transportation_type,
-                                label=f'{local_transportation_type} from {leg.name} to {leg.name_arr}',
-                                distance_m=local_distance_m,
-                                duration_s=(leg.arrivalTime - leg.departureTime).seconds,
-                                price_EUR=[leg.price_step],
-                                gCO2=local_emissions,
-                                departure_point=[leg.latitude, leg.longitude],
-                                arrival_point=[leg.latitude_arr, leg.longitude_arr],
-                                departure_stop_name=leg.name,
-                                arrival_stop_name=leg.name_arr,
-                                departure_date=leg.departureTime,
-                                arrival_date=leg.arrivalTime,
-                                trip_code='',
-                                bike_friendly=False,
-                                geojson=[],
-                                )
+            step = TMW.Journey_step(i,
+                                    _type=local_transportation_type,
+                                    label=f'{local_transportation_type} from {leg.name} to {leg.name_arr}',
+                                    distance_m=int(local_distance_m),
+                                    duration_s=(leg.arrivalTime - leg.departureTime).seconds,
+                                    price_EUR=[leg.price_step],
+                                    gCO2=int(local_emissions),
+                                    departure_point=[leg.latitude, leg.longitude],
+                                    arrival_point=[leg.latitude_arr, leg.longitude_arr],
+                                    departure_stop_name=leg.name,
+                                    arrival_stop_name=leg.name_arr,
+                                    departure_date=int(leg.departureTime.timestamp()),
+                                    arrival_date=int(leg.arrivalTime.timestamp()),
+                                    trip_code='',
+                                    bike_friendly=False,
+                                    geojson=[],
+                                    )
             lst_sections.append(step)
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
-                step = tmw.Journey_step(i,
-                                    _type='transfert',
-                                    label=f'Transfer at {leg.name_arr}',
-                                    distance_m=0,
-                                    duration_s=(leg['next_departure'] - leg['arrivalTime']).seconds,
-                                    price_EUR=[0],
-                                    departure_point=[leg.latitude_arr, leg.longitude_arr],
-                                    arrival_point=[leg.next_latitude, leg.next_longitude],
-                                    departure_stop_name=leg.name_arr,
-                                    arrival_stop_name=leg.next_stop_name,
-                                    departure_date=leg.arrivalTime,
-                                    arrival_date=leg.next_departure,
-                                    gCO2=0,
-                                    bike_friendly=True,
-                                    geojson=[],
-                                    )
+                step = TMW.Journey_step(i,
+                                        _type=constants.TYPE_TRANSFER,
+                                        label=f'Transfer at {leg.name_arr}',
+                                        distance_m=0,
+                                        duration_s=int((leg['next_departure'] - leg['arrivalTime']).seconds),
+                                        price_EUR=[0],
+                                        departure_point=[leg.latitude_arr, leg.longitude_arr],
+                                        arrival_point=[leg.next_latitude, leg.next_longitude],
+                                        departure_stop_name=leg.name_arr,
+                                        arrival_stop_name=leg.next_stop_name,
+                                        departure_date=int(leg.arrivalTime.timestamp()),
+                                        arrival_date=int(leg.next_departure.timestamp()),
+                                        gCO2=0,
+                                        bike_friendly=True,
+                                        geojson=[],
+                                        )
                 lst_sections.append(step)
                 i = i + 1
-        journey_train = tmw.Journey(0, steps=lst_sections,
-                                departure_date=lst_sections[0].departure_date,
-                                arrival_date=lst_sections[-1].arrival_date,
-                                booking_link=f'www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}')
+        journey_train = TMW.Journey(0, steps=lst_sections,
+                                    departure_date=lst_sections[0].departure_date,
+                                    arrival_date=lst_sections[-1].arrival_date,
+                                    booking_link=f'www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}')
+        journey_train.update()
         # Add category
-        # category_journey = list()
-        # for step in journey_train.steps:
-        #    if step.type not in [constants.TYPE_TRANSFER, constants.TYPE_WAIT]:
-        #        category_journey.append(step.type)
+        category_journey = list()
+        for step in journey_train.steps:
+           if step.type not in [constants.TYPE_TRANSFER, constants.TYPE_WAIT]:
+               category_journey.append(step.type)
 
-        # journey_train.category = list(set(category_journey))
+        journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
 
         # for journey in lst_journeys:
@@ -308,27 +302,24 @@ class KomboWorker(BaseWorker):
 
         all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
         if not all_cities:
-            return {"content": "no trip found on Kombo", "demo": 0}
+            return list()
 
         all_trips = pd.DataFrame()
-        logger.info(all_cities)
         i = 0
         for origin_city in all_cities['origin']:
             for arrival_city in all_cities['arrival']:
-                logger.info(f'tout va bien {i}')
                 all_trips = all_trips.append(search_kombo(origin_city, arrival_city, start))
                 time.sleep(1)
 
-        logger.info('avant le test de all_trips')
         time.sleep(2)
         if len(all_trips) == 0:
-            logger.info('pas de all_trips')
-            return {"content": "no trip found on Kombo", "demo": 0}
-        logger.info('still here')
+            logger.warning('pas de all_trips')
+            return list()
         kombo_journeys = kombo_journey(all_trips)
 
         kombo_json = list()
-        for journey in kombo_journeys:
+        limit = min(3,len(kombo_journeys))
+        for journey in kombo_journeys[0:limit]:
             kombo_json.append(journey.to_json())
 
         return kombo_json

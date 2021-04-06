@@ -1,12 +1,10 @@
 import pandas as pd
 from datetime import datetime as dt, timedelta
 from geopy.distance import distance
-from worker import TMW as tmw
-from worker import constants
 from loguru import logger
-import os
 
 from ..base import BaseWorker
+from .. import TMW
 
 
 # Get all ports
@@ -86,43 +84,43 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, port_d
         distance_m = row.distance_m
         local_emissions = 0
         journey_steps = list()
-        journey_step = tmw.Journey_step(0,
-                                    _type='Wait',
-                                    label=f'Arrive at the port 15 minutes '
+        journey_step = TMW.Journey_step(0,
+                                        _type='Wait',
+                                        label=f'Arrive at the port 15 minutes '
                                           f'before departure',
-                                    distance_m=0,
-                                    duration_s=15 * 60,
-                                    price_EUR=[0],
-                                    gCO2=0,
-                                    departure_point=[row.lat_clean_dep, row.long_clean_dep],
-                                    arrival_point=[row.lat_clean_dep, row.long_clean_dep],
-                                    departure_date=row.date_dep - timedelta(seconds=15 * 60),
-                                    arrival_date=row.date_dep,
-                                    geojson=[],
-                                    )
+                                        distance_m=0,
+                                        duration_s=15 * 60,
+                                        price_EUR=[0],
+                                        gCO2=0,
+                                        departure_point=[row.lat_clean_dep, row.long_clean_dep],
+                                        arrival_point=[row.lat_clean_dep, row.long_clean_dep],
+                                        departure_date=int((row.date_dep - timedelta(seconds=15 * 60)).timestamp()),
+                                        arrival_date=int(row.date_dep.timestamp()),
+                                        geojson=[],
+                                        )
         journey_steps.append(journey_step)
 
-        journey_step = tmw.Journey_step(1,
-                                    _type='ferry',
-                                    label=f'Sail Ferry from {row.port_dep} to {row.port_arr}',
-                                    distance_m=distance_m,
-                                    duration_s=(row.date_arr - row.date_dep).seconds,
-                                    price_EUR=[row.price_clean_ar_eur / 2],
-                                    gCO2=local_emissions,
-                                    departure_point=[row.lat_clean_dep, row.long_clean_dep],
-                                    arrival_point=[row.lat_clean_arr, row.long_clean_arr],
-                                    departure_date=row.date_dep,
-                                    arrival_date=row.date_arr,
-                                    geojson=[],
-                                    )
+        journey_step = TMW.Journey_step(1,
+                                        _type='ferry',
+                                        label=f'Sail Ferry from {row.port_dep} to {row.port_arr}',
+                                        distance_m=distance_m,
+                                        duration_s=(row.date_arr - row.date_dep).seconds,
+                                        price_EUR=[row.price_clean_ar_eur / 2],
+                                        gCO2=local_emissions,
+                                        departure_point=[row.lat_clean_dep, row.long_clean_dep],
+                                        arrival_point=[row.lat_clean_arr, row.long_clean_arr],
+                                        departure_date=int(row.date_dep.timestamp()),
+                                        arrival_date=int(row.date_arr.timestamp()),
+                                        geojson=[],
+                                        )
 
         journey_steps.append(journey_step)
 
-        journey = tmw.Journey(0,
-                          steps=journey_steps,
-                          departure_date=journey_steps[0].departure_date,
-                          arrival_date=journey_steps[1].arrival_date,
-                          )
+        journey = TMW.Journey(0,
+                              steps=journey_steps,
+                              departure_date=journey_steps[0].departure_date,
+                              arrival_date=journey_steps[1].arrival_date,
+                              )
         journey.total_gCO2 = local_emissions
         journey.category = 'Ferry'
         journey.booking_link = 'https://www.ferrysavers.co.uk/ferry-routes.htm'
@@ -164,7 +162,7 @@ class FerryWorker(BaseWorker):
                                      self.port_database)
 
         if ferry_journeys is None :
-            return {'content': 'No trip from ferry', 'demo': 0}
+            return list()
         ferry_jsons = list()
         for journey in ferry_journeys:
             ferry_jsons.append(journey.to_json())

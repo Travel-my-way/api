@@ -59,30 +59,6 @@ services:
     depends_on:
       - rabbitmq
 
-  trainline:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=trainline
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
-    depends_on:
-      - rabbitmq
-
-  fake:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=fake
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
-    depends_on:
-      - rabbitmq
-
   ouibus:
     build:
       context: .
