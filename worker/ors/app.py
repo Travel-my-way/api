@@ -2,9 +2,10 @@ from loguru import logger
 
 from ..base import BaseWorker
 
-from .. import TMW as tmw
 from .. import constants
 from .. import tmw_api_keys
+from .. import TMW
+
 
 import openrouteservice
 from datetime import timedelta, datetime as dt
@@ -65,7 +66,7 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
 
     formated_date = dt.strptime(query['departure_date'], '%Y-%m-%d')
 
-    step = tmw.Journey_step(_id,
+    step = TMW.Journey_step(_id,
                             _type=ors_profile(profile),
                             label=profile,
                             distance_m=local_distance,
@@ -73,17 +74,19 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
                             price_EUR=[ors_gas_price(ors_step['routes'][0]['summary']['distance'])],
                             gCO2=local_emissions,
                             # geojson=geojson,
-                            departure_date=formated_date
+                            departure_point=query['start_point'],
+                            arrival_point=query['end_point'],
+                            departure_date=int(formated_date.timestamp())
                             )
     # Correct arrival_date based on departure_date
 
-    step.arrival_date = (formated_date + timedelta(seconds=step.duration_s))
+    step.arrival_date = step.departure_date + step.duration_s
 
     # Add toll price (optional)
     step = ors_add_toll_price(step) if toll_price else step
 
-    ors_journey = tmw.Journey(0,
-                              departure_date=formated_date,
+    ors_journey = TMW.Journey(0,
+                              departure_date=step.departure_date,
                               arrival_date=step.arrival_date,
                               steps=[step])
     # Add category
@@ -94,7 +97,7 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
 
     ors_journey.category = list(set(category_journey))
     ors_journey.update()
-    ors_journey.arrival_date = ors_journey.departure_date + timedelta(seconds=ors_journey.total_duration)
+    ors_journey.arrival_date = ors_journey.departure_date + ors_journey.total_duration
 
     return ors_journey
 
@@ -132,9 +135,11 @@ class ORSWorker(BaseWorker):
         ors_journey = ors_query_directions(query)
 
         if ors_journey:
-            return ors_journey.to_json()
+            response = list()
+            response.append(ors_journey.to_json())
+            return response
 
         else:
             logger.info('No ORS journey found')
-            return {"content": "no ors journey was found ", "demo": 0}
+            return list()
 

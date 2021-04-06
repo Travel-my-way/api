@@ -8,8 +8,8 @@ from loguru import logger
 
 from ..base import BaseWorker
 
-from .. import TMW as tmw
 from .. import constants
+from .. import TMW
 
 
 def pandas_explode(df, column_to_explode):
@@ -145,7 +145,7 @@ def blablacar_journey(df_response):
         i = _id
         lst_sections = list()
         # We add a waiting period at the pick up point of 15 minutes
-        step = tmw.Journey_step(i,
+        step = TMW.Journey_step(i,
                                 _type=constants.TYPE_WAIT,
                                 label=f'Arrive at pick up point'
                                       f' {constants.WAITING_PERIOD_BLABLACAR} '
@@ -156,9 +156,8 @@ def blablacar_journey(df_response):
                                 gCO2=0,
                                 departure_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
                                 arrival_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
-                                departure_date=itinerary.date_time.iat[0] -
-                                timedelta(seconds=constants.WAITING_PERIOD_BLABLACAR),
-                                arrival_date=itinerary.date_time.iat[0],
+                                departure_date=itinerary.date_time.iat[0].timestamp() - constants.WAITING_PERIOD_BLABLACAR,
+                                arrival_date=itinerary.date_time.iat[0].timestamp(),
                                 bike_friendly=False,
                                 geojson=[],
                                 )
@@ -169,7 +168,7 @@ def blablacar_journey(df_response):
         for index, leg in itinerary.iterrows():
             local_distance_m = leg.distance_in_meters
             local_emissions = 0
-            step = tmw.Journey_step(i,
+            step = TMW.Journey_step(i,
                                     _type=constants.TYPE_CARPOOOLING,
                                     label=f'BlablaCar trip from {leg.city} to {leg.city_arrival}',
                                     distance_m=local_distance_m,
@@ -180,8 +179,8 @@ def blablacar_journey(df_response):
                                     arrival_point=[leg.latitude_arrival, leg.longitude_arrival],
                                     departure_stop_name=leg.address + ' ' + leg.city,
                                     arrival_stop_name=leg.address_arrival + ' ' + leg.city_arrival,
-                                    departure_date=leg.date_time,
-                                    arrival_date=leg.date_time_arrival,
+                                    departure_date=leg.date_time.timestamp(),
+                                    arrival_date=leg.date_time_arrival.timestamp(),
                                     trip_code='BlaBlaCar_' + str(leg.trip_id),
                                     bike_friendly=False,
                                     geojson=[],
@@ -190,7 +189,7 @@ def blablacar_journey(df_response):
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
-                step = tmw.Journey_step(i,
+                step = TMW.Journey_step(i,
                                         _type=constants.TYPE_TRANSFER,
                                         label=f'Transfer at {leg.name_arrival_seg}',
                                         distance_m=0,
@@ -200,15 +199,15 @@ def blablacar_journey(df_response):
                                         arrival_point=[leg.latitude_arrival, leg.longitude_arrival],
                                         departure_stop_name=leg.address_arrival + ' ' + leg.city_arrival,
                                         arrival_stop_name=leg.address_arrival + ' ' + leg.city_arrival,
-                                        departure_date=leg.date_time_arrival,
-                                        arrival_date=leg.next_departure,
+                                        departure_date=leg.date_time_arrival.timestamp(),
+                                        arrival_date=leg.next_departure.timestamp(),
                                         gCO2=0,
                                         bike_friendly=False,
                                         geojson=[],
                                         )
                 lst_sections.append(step)
                 i = i + 1
-        journey_blablacar = tmw.Journey(_id, steps=lst_sections,
+        journey_blablacar = TMW.Journey(_id, steps=lst_sections,
                                         departure_date=lst_sections[0].departure_date,
                                         arrival_date=lst_sections[-1].arrival_date,
                                         booking_link=leg.link)
@@ -243,7 +242,7 @@ class BlaBlaCarWorker(BaseWorker):
 
         # logger.info(f'len the trips {len(all_trips)}')
         if all_trips is None:
-            return {"content": "no blalabla trips were found ", "demo": 0}
+            return list()
 
         blablacar_journeys = blablacar_journey(all_trips)
         blablacar_json = list()

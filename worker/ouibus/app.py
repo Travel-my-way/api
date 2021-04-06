@@ -3,12 +3,13 @@ import pandas as pd
 from datetime import datetime as dt, timedelta
 from geopy.distance import distance
 from worker import tmw_api_keys
-from worker import TMW as tmw
 from worker import constants
 import copy
 from loguru import logger
 
 from ..base import BaseWorker
+from .. import TMW
+
 
 
 def pandas_explode(df, column_to_explode):
@@ -166,7 +167,7 @@ def ouibus_journeys(df_response, _id=0):
         i = _id
         lst_sections = list()
         # We add a waiting period at the station of 15 minutes
-        step = tmw.Journey_step(i,
+        step = TMW.Journey_step(i,
                                 _type=constants.TYPE_WAIT,
                                 label=f'Arrive at the station '
                                       f'{format_timespan(constants.WAITING_PERIOD_OUIBUS)}'
@@ -177,8 +178,8 @@ def ouibus_journeys(df_response, _id=0):
                                 gCO2=0,
                                 departure_point=itinerary.geoloc.iloc[0],
                                 arrival_point=itinerary.geoloc.iloc[0],
-                                departure_date=itinerary.departure_seg[0] - timedelta(seconds=_STATION_WAITING_PERIOD),
-                                arrival_date=itinerary.departure_seg[0],
+                                departure_date=int(itinerary.departure_seg[0].timestamp() - constants.WAITING_PERIOD_OUIBUS),
+                                arrival_date=int(itinerary.departure_seg[0].timestamp()),
                                 geojson=[],
                                 )
         lst_sections.append(step)
@@ -186,7 +187,7 @@ def ouibus_journeys(df_response, _id=0):
         for index, leg in itinerary.iterrows():
             local_distance_m = leg.distance_step
             local_emissions = 0
-            step = tmw.Journey_step(i,
+            step = TMW.Journey_step(i,
                                     _type=constants.TYPE_COACH,
                                     label=f'Coach ouibus {leg.bus_number} to {leg.short_name_destination_seg}',
                                     distance_m=local_distance_m,
@@ -197,8 +198,8 @@ def ouibus_journeys(df_response, _id=0):
                                     arrival_point=leg.geoloc_destination_seg,
                                     departure_stop_name=leg.short_name_origin_seg,
                                     arrival_stop_name=leg.short_name_destination_seg,
-                                    departure_date=leg.departure_seg,
-                                    arrival_date=leg.arrival_seg,
+                                    departure_date=int(leg.departure_seg.timestamp()),
+                                    arrival_date=int(leg.arrival_seg.timestamp()),
                                     trip_code='ouibus ' + leg.bus_number,
                                     geojson=[],
                                     )
@@ -206,7 +207,7 @@ def ouibus_journeys(df_response, _id=0):
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
-                step = tmw.Journey_step(i,
+                step = TMW.Journey_step(i,
                                         _type=constants.TYPE_TRANSFER,
                                         label=f'Transfer at {leg.short_name_destination_seg}',
                                         distance_m=distance(leg.geoloc_destination_seg,leg.next_geoloc).m,
@@ -223,7 +224,7 @@ def ouibus_journeys(df_response, _id=0):
                 i = i + 1
         departure_date_formated = dt.strptime(str(lst_sections[0].departure_date)[0:15],
                                               '%Y-%m-%d %H:%M').strftime('%Y-%m-%d %H:00')
-        journey_ouibus = tmw.Journey(_id, steps=lst_sections,
+        journey_ouibus = TMW.Journey(_id, steps=lst_sections,
                                      departure_date=lst_sections[0].departure_date,
                                      arrival_date=lst_sections[-1].arrival_date,
                                      booking_link=f'https://fr.ouibus.com/recherche?origin={origin_slug}'
@@ -295,7 +296,7 @@ class OuiBusWorker(BaseWorker):
 
         all_stops = get_stops_from_geo_loc(geoloc_dep, geoloc_arr, self.ouibus_database)
         if not all_stops:
-            return {"content": "no trip found on oubus", "demo": 0}
+            return list()
 
         origin_meta_gare_ids = all_stops['origin'].id_meta_gare.unique()
         destination_meta_gare_ids = all_stops['destination'].id_meta_gare.unique()
@@ -313,7 +314,7 @@ class OuiBusWorker(BaseWorker):
          # Enrich with stops info
         if all_trips.empty:
             logger.info('no trip found from ouibus')
-            return {"content": "no trip found on oubus", "demo": 0}
+            return list()
 
         all_trips = all_trips.merge(self.ouibus_database[['id', 'geoloc', 'short_name']],
                                     left_on='origin_id', right_on='id', suffixes=['', '_origin'])
