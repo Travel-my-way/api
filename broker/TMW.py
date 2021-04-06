@@ -25,7 +25,7 @@ class Journey:
 
     def add(self, steps=[]):
         self.steps.append(steps)
-    
+
     def to_json(self):
         json = {'id': self.id or 0,
                 'label': self.label or '',
@@ -123,8 +123,8 @@ class Journey_step:
                 'arrival_point': self.arrival_point or '',
                 'departure_stop_name': self.departure_stop_name or '',
                 'arrival_stop_name': self.arrival_stop_name or '',
-                'departure_date': int(self.departure_date) or '',
-                'arrival_date': int(self.arrival_date) or '',
+                'departure_date': int(self.departure_date) or 0,
+                'arrival_date': int(self.arrival_date) or 0,
                 'trip_code': self.trip_code or '',
                 'gCO2': self.gCO2 or 0,
                 # 'geojson': self.geojson,
