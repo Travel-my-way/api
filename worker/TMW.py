@@ -1,7 +1,7 @@
 """
 INITIATE CLASSES
 """
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt
 
 class Journey:
     def __init__(self, _id, departure_date=dt.now(), arrival_date=dt.now(), booking_link='', steps=[]):
@@ -30,15 +30,15 @@ class Journey:
         json = {'id': self.id or 0,
                 'label': self.label or '',
                 'category': self.category or '',
-                'score': self.score or '',
-                'total_distance': self.total_distance or '',
-                'total_duration': self.total_duration or '',
+                'score': self.score or 0,
+                'total_distance': self.total_distance or 0,
+                'total_duration': self.total_duration or 0,
                 'total_price_EUR': self.total_price_EUR or '',
                 'departure_point': self.departure_point or '',
                 'arrival_point': self.arrival_point or '',
-                'departure_date': str(self.departure_date) or '',
-                'arrival_date': str(self.arrival_date) or '',
-                'total_gCO2': self.total_gCO2 or '',
+                'departure_date': int(self.departure_date) or 0,
+                'arrival_date': int(self.arrival_date) or 0,
+                'total_gCO2': self.total_gCO2 or 0,
                 'is_real_journey': self.is_real_journey or '',
                 'booking_link': self.booking_link or '',
                 'journey_steps': [step.to_json() for step in self.steps]
@@ -60,6 +60,11 @@ class Journey:
         self.total_price_EUR = sum(filter(None,[sum(step.price_EUR) for step in self.steps]))
         self.total_gCO2 = sum(filter(None,[step.gCO2 for step in self.steps]))
         self.bike_friendly = all(step.bike_friendly for step in self.steps)
+        if len(self.steps)>0:
+            self.departure_point = self.steps[0].departure_point
+            self.arrival_point = self.steps[-1].arrival_point
+            self.departure_date = self.steps[0].departure_date
+            self.arrival_date = self.steps[-1].arrival_date
         return self
 
     def add_steps(self, steps_to_add, start_end=True):
@@ -74,14 +79,14 @@ class Journey:
             for step_old in self.steps:
                 step_old.id = step_old.id + nb_steps_to_add
             self.steps = steps_to_add + self.steps
-            self.departure_date = self.departure_date - timedelta(seconds=additionnal_duration)
+            self.departure_date = self.departure_date - additionnal_duration
         # if the steps are at the end of the journey
         else :
             nb_existing_steps = len(self.steps)
             for step_new in steps_to_add:
                 step_new.id = step_new.id + nb_existing_steps
             self.steps = self.steps + steps_to_add
-            self.arrival_date = self.arrival_date + timedelta(seconds=additionnal_duration)
+            self.arrival_date = self.arrival_date + additionnal_duration
 
 
 class Journey_step:
@@ -108,20 +113,20 @@ class Journey_step:
         self.geojson = geojson
 
     def to_json(self):
-        json = {'id': self.id or '',
+        json = {'id': self.id or 0,
                 'type': self.type or '',
                 'label': self.label or '',
-                'distance_m': self.distance_m or '',
-                'duration_s': self.duration_s or '',
+                'distance_m': self.distance_m or 0,
+                'duration_s': self.duration_s or 0,
                 'price_EUR': self.price_EUR or '',
                 'departure_point': self.departure_point or '',
                 'arrival_point': self.arrival_point or '',
                 'departure_stop_name': self.departure_stop_name or '',
                 'arrival_stop_name': self.arrival_stop_name or '',
-                'departure_date': str(self.departure_date) or '',
-                'arrival_date': str(self.arrival_date) or '',
+                'departure_date': int(self.departure_date) or '',
+                'arrival_date': int(self.arrival_date) or '',
                 'trip_code': self.trip_code or '',
-                'gCO2': self.gCO2 or '',
+                'gCO2': self.gCO2 or 0,
                 # 'geojson': self.geojson,
                 }
         return json
