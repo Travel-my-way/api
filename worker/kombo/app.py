@@ -68,10 +68,11 @@ def update_city_list():
 
     else :
         return None
+    # return pd.read_csv('worker/kombo/kombo_cities.csv')
 
 
 # Find the stops close to a geo point
-def get_cities_from_geo_locs(geoloc_dep, geoloc_arrival, city_db):
+def get_cities_from_geo_locs(geoloc_dep, geoloc_arrival, city_db, nb_different_city=2):
     """
         This function takes in the departure and arrival points of the TMW journey and returns
             the 3 closest stations within 50 km
@@ -91,9 +92,9 @@ def get_cities_from_geo_locs(geoloc_dep, geoloc_arrival, city_db):
 
     # We keep only the 2 closest cities from dep and arrival
     parent_station_id_list['origin'] = stops_tmp[stops_tmp.distance_dep < 0.5].sort_values(
-                    by='distance_dep').head(2).id
+                    by='distance_dep').head(nb_different_city).id
     parent_station_id_list['arrival'] = stops_tmp[stops_tmp.distance_arrival < 0.5].sort_values(
-        by='distance_arrival').head(2).id
+        by='distance_arrival').head(nb_different_city).id
     return parent_station_id_list
 
 
@@ -127,11 +128,23 @@ def extract_from_stations(x):
     return pd.Series([x['id']['name'], x['latitude']['longitude'], x['cityId']['departureTime'], x['segments']['arrivalTime'], x['segments']['companyId']])
 
 
-def search_kombo(id_dep, id_arr, date, nb_passengers=1):
+def response_ready(fast_response, trips, companies):
+    if fast_response & (len(trips) > 0) & (len(companies) > 0):
+        try:
+            if ('bus' in companies.transportType.unique()) or 'train' in companies.transportType.unique():
+                return True
+        except Exception as e:
+            logger.warning(f'fast_response bug {e}')
+            return False
+    return False
+
+
+def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
     headers = {
         'token': tmw_api_keys.KOMBO_API_KEY,
     }
     r = requests.get(f'https://turing.kombo.co/search/{id_dep}/{id_arr}/{date}/{nb_passengers}', headers=headers)
+    logger.info(f'https://turing.kombo.co/search/{id_dep}/{id_arr}/{date}/{nb_passengers}')
     if r.status_code == 200:
         pollkey = r.json()['key']
         # print('paul k ok')
@@ -143,12 +156,19 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1):
     trips = pd.DataFrame.from_dict(response.json()['trips'])
     stations = dataframize(response.json()['dependencies']['stations'])
     companies = dataframize(response.json()['dependencies']['companies'])
-    while not response.json()['completed']:
+    keep_looking = not (response.json()['completed'])
+
+    if response_ready(fast_response, trips, companies):
+        keep_looking = False
+
+    while keep_looking:
         time.sleep(0.5)
         response = requests.get(f'https://turing.kombo.co/pollSearch/{pollkey}', headers=headers)
         trips = trips.append(pd.DataFrame.from_dict(response.json()['trips']))
         stations = stations.append(dataframize(response.json()['dependencies']['stations']))
         companies = companies.append(dataframize(response.json()['dependencies']['companies']))
+        keep_looking = not (response.json()['completed'])
+
     if len(trips) == 0:
         logger.info('trips est vide')
         return pd.DataFrame()
@@ -174,10 +194,16 @@ def kombo_journey(df_response, passengers=1):
 
     lst_journeys = list()
     tranportation_mean_wait = {
-        'bus': 15 * 60,
-        'train': 15 * 60,
-        'flight': 90 * 60,
+        'bus': constants.WAITING_PERIOD_OUIBUS,
+        'train': constants.WAITING_PERIOD_TRAINLINE,
+        'flight': constants.WAITING_PERIOD_AIRPORT,
     }
+    switcher_category = {
+        'train': constants.TYPE_TRAIN,
+        'flight': constants.TYPE_PLANE,
+        'bus': constants.TYPE_BUS,
+    }
+
     # all itineraries :
     df_response['latitude'] = df_response.apply(lambda x: float(x['latitude']), axis=1)
     df_response['longitude'] = df_response.apply(lambda x: float(x['longitude']), axis=1)
@@ -218,7 +244,7 @@ def kombo_journey(df_response, passengers=1):
         # Go through all steps of the journey
         for index, leg in itinerary.iterrows():
             local_distance_m = distance([leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]).m
-            local_transportation_type = leg.transportType
+            local_transportation_type = switcher_category[leg.transportType]
             local_emissions = 0
             step = TMW.Journey_step(i,
                                     _type=local_transportation_type,
@@ -267,16 +293,34 @@ def kombo_journey(df_response, passengers=1):
         # Add category
         category_journey = list()
         for step in journey_train.steps:
-           if step.type not in [constants.TYPE_TRANSFER, constants.TYPE_WAIT]:
-               category_journey.append(step.type)
+            if step.type not in [constants.TYPE_TRANSFER, constants.TYPE_WAIT]:
+                category_journey.append(step.type)
 
         journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
+        logger.info(f'we got kombo journey nb {i} and it a {journey_train.category}')
 
         # for journey in lst_journeys:
         #    journey.update()
 
     return lst_journeys
+
+
+def compute_kombo_journey(all_cities, start, fast_response=False):
+    all_trips = pd.DataFrame()
+
+    for origin_city in all_cities['origin']:
+        for arrival_city in all_cities['arrival']:
+            all_trips = all_trips.append(search_kombo(origin_city, arrival_city, start
+                                                      , nb_passengers=1, fast_response=fast_response))
+            time.sleep(1)
+
+    time.sleep(2)
+    if len(all_trips) == 0:
+        logger.warning('pas de all_trips')
+        return list()
+
+    return kombo_journey(all_trips)
 
 
 class KomboWorker(BaseWorker):
@@ -298,27 +342,17 @@ class KomboWorker(BaseWorker):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        start =  message.payload['start']
+        start = message.payload['start']
 
         all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
         if not all_cities:
             return list()
 
-        all_trips = pd.DataFrame()
-        i = 0
-        for origin_city in all_cities['origin']:
-            for arrival_city in all_cities['arrival']:
-                all_trips = all_trips.append(search_kombo(origin_city, arrival_city, start))
-                time.sleep(1)
+        kombo_journeys = compute_kombo_journey(all_cities, start)
 
-        time.sleep(2)
-        if len(all_trips) == 0:
-            logger.warning('pas de all_trips')
-            return list()
-        kombo_journeys = kombo_journey(all_trips)
-
+        logger.info(f'we found {len(kombo_journeys)} kombo journeys')
         kombo_json = list()
-        limit = min(3,len(kombo_journeys))
+        limit = min(10,len(kombo_journeys))
         for journey in kombo_journeys[0:limit]:
             kombo_json.append(journey.to_json())
 
