@@ -43,10 +43,10 @@ def json_to_journey(json_journey):
                                           )
                          )
     journey = TMW.Journey(0,
-                      steps=step_list,
-                      departure_date=int(json_journey['departure_date']),
-                      arrival_date=int(json_journey['arrival_date']),
-                      booking_link=json_journey['booking_link'])
+                          steps=step_list,
+                          departure_date=int(json_journey['departure_date']),
+                          arrival_date=int(json_journey['arrival_date']),
+                          booking_link=json_journey['booking_link'])
 
     journey.category = json_journey['category']
     return journey
@@ -121,6 +121,9 @@ class Client(ConsumerMixin):
                 logger.warning(f'recreate_journey_objects a foiré pour {o["emitter"]}')
                 logger.warning(e)
             # all_journeys = recreate_journey_objects(o["results"])
+            tmp = len(o["result"])
+            tmp2 = o["emitter"]
+            logger.info(f'on a {tmp} journey de {tmp2}')
             content[o["emitter"]] = o["result"]
 
         urban_queries = list()
@@ -141,8 +144,6 @@ class Client(ConsumerMixin):
 
         urban_journey_dict = dict()
         for urban_query in urban_queries:
-            logger.info(f'call Navitia with {urban_query.to_json()}')
-
             urban_journey = Navitia.navitia_query_directions(urban_query)
 
             urban_journey_dict[str(urban_query.to_json())] = urban_journey
@@ -163,11 +164,11 @@ class Client(ConsumerMixin):
 
             interurban_journey.update()
 
-            #fetch urban_journey
         response = dict()
-
+        i = 0
         for journey in journey_list:
             # On peut avoir plusieurs category pour le meme journey
-            response[' + '.join(journey.category)] = journey.to_json()
+            response[' + '.join(journey.category) + '_' + str(i)] = journey.to_json()
+            i = i + 1
 
         return response
