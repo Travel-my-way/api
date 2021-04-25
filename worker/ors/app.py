@@ -44,7 +44,7 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
     """
     ors_client = start_ors_client()
     coord = [query['start_point'][::-1], query['end_point'][::-1]]   # WARNING it seems that [lon,lat] are not in the same order than for other API.
-    logger.info(f'la gueule de coord {coord}')
+
     try:
         ors_step = ors_client.directions(
             coord,
@@ -53,13 +53,13 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
             geometry=geometry,
             options={'avoid_features': ['ferries']},
         )
-    except:
+    except Exception as e:
         logger.info('achtung brigitte !!!')
+        logger.info(e)
         return None
 
     # geojson = convert.decode_polyline(ors_step['routes'][0]['geometry'])
-    logger.info('on y est wesh ')
-    logger.info(ors_step)
+    # logger.info(ors_step)
 
     local_distance = ors_step['routes'][0]['summary']['distance']
     local_emissions = 0
