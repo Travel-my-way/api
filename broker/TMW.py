@@ -2,6 +2,7 @@
 INITIATE CLASSES
 """
 from datetime import datetime as dt
+from . import constants
 
 class Journey:
     def __init__(self, _id, departure_date=dt.now(), arrival_date=dt.now(), booking_link='', steps=[]):
@@ -65,6 +66,9 @@ class Journey:
             self.arrival_point = self.steps[-1].arrival_point
             self.departure_date = self.steps[0].departure_date
             self.arrival_date = self.steps[-1].arrival_date
+            self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_BUS,
+                                                             constants.TYPE_FERRY, constants.TYPE_CARPOOOLING, constants.TYPE_CAR],
+                                             [step.type for step in self.steps]))))
         return self
 
     def add_steps(self, steps_to_add, start_end=True):
