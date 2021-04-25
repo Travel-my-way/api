@@ -168,7 +168,7 @@ def navitia_journeys(json, _id=0):
     lst_journeys = list()
     try:
         journeys = json['journeys']
-    except:
+    except Exception as e:
         logger.warning('ERROR {}'.format(json['error']))
         return None
     for j in journeys:
@@ -178,9 +178,9 @@ def navitia_journeys(json, _id=0):
         for section in j['sections']:
             try:
                 lst_sections.append(navitia_journeys_sections_type(section, _id=i))
-            except:
+            except Exception as e:
                 logger.warning('Navitia ERROR : ')
-                logger.warning('id: {}'.format(i))
+                logger.warning(e)
                 logger.warning(section)
             i = i + 1
         lst_journeys.append(tmw.Journey(_id, steps=lst_sections))
@@ -194,8 +194,10 @@ def navitia_journeys_sections_type(json, _id=0):
         'waiting': navitia_journeys_sections_type_waiting,
         'transfer': navitia_journeys_sections_type_transfer,
         'on_demand_transport': navitia_journeys_sections_type_on_demand,
+        'crow_fly': navitia_journeys_sections_type_crow_fly,
     }
     func = switcher_journeys_sections_type.get(json['type'], "Invalid navitia type")
+
     step = func(json, _id)
     return step
 
@@ -228,13 +230,13 @@ def navitia_journeys_sections_type_on_demand(json, _id=0):
                             arrival_stop_name=json['to']['name'],
                             departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
                             arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            geojson=json['geojson'],
                             )
     return step
 
 
 def navitia_journeys_sections_type_public_transport(json, _id=0):
     display_information = json['display_informations']
+
     label = '{} {} / {} / direction: {}'.format(
         display_information['physical_mode'],
         display_information['code'],
@@ -275,7 +277,6 @@ def navitia_journeys_sections_type_public_transport(json, _id=0):
                             arrival_stop_name=json['to']['name'],
                             departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
                             arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            geojson=json['geojson'],
                             )
 
     return step
@@ -313,8 +314,44 @@ def navitia_journeys_sections_type_street_network(json, _id=0):
                             arrival_stop_name=json['to']['name'],
                             departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
                             arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            geojson=json['geojson'],
                             )
+    return step
+
+
+def navitia_journeys_sections_type_crow_fly(json, _id=0):
+    mode = json['mode']
+    mode_to_type = {
+        'walking': constants.TYPE_WALK,
+        'bike': constants.TYPE_BIKE,
+        'car': constants.TYPE_CAR,
+    }
+    label = '{} FROM {} TO {}'.format(
+        mode_to_type[mode],
+        json['from']['name'],
+        json['to']['name'],
+    )
+    embedded_type_from = json['from']['embedded_type']
+    embedded_type_to = json['to']['embedded_type']
+
+    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
+                       float(json['from'][embedded_type_from]['coord']['lon'])]
+    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
+                     float(json['to'][embedded_type_to]['coord']['lon'])]
+    step = tmw.Journey_step(_id,
+                            _type=mode_to_type[mode],
+                            label=label,
+                            distance_m=json['to']['distance'],
+                            duration_s=json['duration'],
+                            price_EUR=[0],
+                            gCO2=json['co2_emission']['value'],
+                            departure_point=departure_point,
+                            arrival_point=arrival_point,
+                            departure_stop_name=json['from']['name'],
+                            arrival_stop_name=json['to']['name'],
+                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
+                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
+                            )
+
     return step
 
 
