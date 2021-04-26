@@ -152,11 +152,16 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
         print(f'error in search {r.status_code}')
         return pd.DataFrame()
     time.sleep(0.5)
-    response = requests.get(f'https://turing.kombo.co/pollSearch/{pollkey}', headers=headers)
-    trips = pd.DataFrame.from_dict(response.json()['trips'])
-    stations = dataframize(response.json()['dependencies']['stations'])
-    companies = dataframize(response.json()['dependencies']['companies'])
-    keep_looking = not (response.json()['completed'])
+    try:
+        response = requests.get(f'https://turing.kombo.co/pollSearch/{pollkey}', headers=headers)
+        trips = pd.DataFrame.from_dict(response.json()['trips'])
+        stations = dataframize(response.json()['dependencies']['stations'])
+        companies = dataframize(response.json()['dependencies']['companies'])
+        keep_looking = not (response.json()['completed'])
+    except Exception as e:
+        logger.warning('error in kombo response')
+        logger.warning(e)
+        return pd.DataFrame()
 
     if response_ready(fast_response, trips, companies):
         keep_looking = False
