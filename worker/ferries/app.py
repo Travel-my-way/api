@@ -7,6 +7,7 @@ from loguru import logger
 from ..base import BaseWorker
 from .. import TMW
 from .. import constants
+from .. import tmw_api_keys
 
 from worker.kombo import app as kombo
 from worker.ors import app as ors
@@ -168,7 +169,6 @@ class FerryWorker(BaseWorker):
     routing_key = "ferry"
 
     def __init__(self, connection, exchange):
-        self.port_database = load_port_db()
         self.ferry_database = load_ferry_db()
         self.route_database = load_route_db()
         self.city_db = update_city_list()
