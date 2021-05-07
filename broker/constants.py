@@ -8,21 +8,6 @@ ADEME_LOC_DB_PATH = r'data/EmissionFactor.csv'
 # SUBCAT_AIR = 'Air'
 # SUBCAT_ROAD = 'Road'
 
-#CARBON DB HEADER
-# TYPE_OF_TRANSPORT = "Type of transport"
-# LOCALISATION = "Localisation"
-# NB_SEATS = "Number of seats"
-# NB_KM = "Number of km"
-# FUEL = "Fuel"
-TYPE_OF_TRANSPORT = "subcategory_3"
-CITY = 'city'
-CITY_SIZE_MIN = 'city_size_min'
-CITY_SIZE_MAX = 'city_size_max'
-NB_SEATS_MIN = "capacity_min"
-NB_SEATS_MAX = "capacity_max"
-NB_KM_MIN = "distance_min"
-NB_KM_MAX = "distance_max"
-FUEL = "fuel"
 
 # USAGES
 TYPE_PLANE = "Plane"
@@ -62,13 +47,6 @@ WAITING_PERIOD_BLABLACAR = 15 * 60
 WAITING_PERIOD_AIRPORT = 75 * 60
 WAITING_PERIOD_OUIBUS = 15 * 60
 WAITING_PERIOD_PORT = 15 * 60
-
-# DEFAULT VALUES
-DEFAULT_CITY = ('', '', '')
-DEFAULT_NB_PASSENGERS = 1
-DEFAULT_FUEL = ''
-DEFAULT_NB_SEATS = ('', '')
-DEFAULT_NB_KM = ('', '')
 
 # Journey label
 LABEL_CHEAPEST_JOURNEY = 'Cheapest Journey'
