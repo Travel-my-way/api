@@ -33,12 +33,11 @@ jobs:
     needs: test
 
     runs-on: ubuntu-latest
-    # if: github.event_name == 'push'
+    if: github.event_name == 'push'
 
     strategy:
       matrix:
-        # component: [api, broker, worker]
-        component: [api]
+        component: [api, broker, worker]
 
     permissions:
       contents: read
@@ -72,26 +71,3 @@ jobs:
           cache: true
           cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
-
-
-      # - name: Push image
-      #   run: |
-      #     IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
-
-      #     # Change all uppercase to lowercase
-      #     IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-      #     # Strip git ref prefix from version
-      #     VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-      #     # Strip "v" prefix from tag name
-      #     [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-      #     # Use Docker `latest` tag convention
-      #     [ "$VERSION" == "master" ] && VERSION=latest
-
-      #     echo IMAGE_ID=$IMAGE_ID
-      #     echo VERSION=$VERSION
-
-      #     docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-      #     docker push $IMAGE_ID:$VERSION
