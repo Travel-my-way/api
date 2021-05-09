@@ -13,10 +13,6 @@ on:
   # Run tests for any PRs.
   pull_request:
 
-env:
-  # TODO: Change variable to your image's name.
-  IMAGE_NAME: image
-
 jobs:
   # Run tests.
   # See also https://docs.docker.com/docker-hub/builds/automated-testing/
@@ -51,14 +47,30 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Set Image tag
+        run: |
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+
+          echo VERSION=$VERSION
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+
       - name: Kaniko build
         uses: aevea/action-kaniko@master
         with:
           registry: docker.pkg.github.com
           password: ${{ secrets.GITHUB_TOKEN }}
-          image: bonvoyage
+          image: bonvoyage-${{ matrix.component }}
+          tag: ${{ env.VERSION }}
           cache: true
-          cache_registry: aevea/cache
+          cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
 
 
