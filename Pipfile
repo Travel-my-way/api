@@ -23,7 +23,6 @@ openrouteservice = '==2.2.3'
 navitia-client = '==0.6.2'
 Shapely = '==1.7.0'
 
-
 [requires]
 python_version = "3.8"
 

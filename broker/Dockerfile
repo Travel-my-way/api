@@ -17,16 +17,20 @@ COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
 
-FROM python:3.8-alpine AS runtime
+FROM python:3.8-slim AS runtime
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
 
+# Reinstall numpy
+RUN python -m pip install numpy==1.20.3
+
+
 # Create and switch to a new user
-RUN addgroup -S appgroup && adduser -S appuser -h /home/appuser -G appgroup
+RUN groupadd -r appgroup -g 901 && useradd -m -g appgroup -u 901 appuser
 WORKDIR /home/appuser
 USER appuser
 
 # Install application into container
-COPY ./broker /app/broker
+COPY ./broker /home/appuser/broker
 
 ENTRYPOINT ["python", "-m", "broker"]
