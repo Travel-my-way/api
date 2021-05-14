@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir pipenv=='2020.11.15' && apt-get update && apt-get
 # Install python dependencies in /.venv
 COPY Pipfile .
 COPY Pipfile.lock .
-RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy && pipenv install gunicorn==20.1.0
 
 
 FROM python:3.8-alpine AS runtime
@@ -27,6 +27,6 @@ WORKDIR /home/appuser
 USER appuser
 
 # Install application into container
-COPY ./api /app/api
+COPY ./api /home/appuser/api
 
-ENTRYPOINT ["flask", "run", "--host=0.0.0.0"]
+ENTRYPOINT ["gunicorn", "-w 4", "api.lbv.wsgi:app"]
