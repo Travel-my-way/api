@@ -29,4 +29,6 @@ USER appuser
 # Install application into container
 COPY ./api /home/appuser/api
 
-ENTRYPOINT ["gunicorn", "-w 4", "api.lbv.wsgi:app"]
+EXPOSE 8000
+
+ENTRYPOINT ["gunicorn", "-b 0.0.0.0", "-w 4", "api.lbv.wsgi:app"]
