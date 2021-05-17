@@ -109,6 +109,8 @@ def enrich_trips(trips, stations, companies):
     trips_exploded = trips_exploded.merge(trips_grouped, on='tripId', suffixes=['', '_nb'])
     trips_exploded['departureTime'] = pd.to_datetime(trips_exploded['departureTime'])
     trips_exploded['arrivalTime'] = pd.to_datetime(trips_exploded['arrivalTime'])
+    # we get rid of segments so we can deduplicate later
+    trips_exploded.pop('segments')
 
     return trips_exploded
 
@@ -149,7 +151,7 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
         pollkey = r.json()['key']
         # print('paul k ok')
     else:
-        print(f'error in search {r.status_code}')
+        logger.warning(f'error in search {r.status_code}')
         return pd.DataFrame()
     time.sleep(0.5)
     try:
@@ -206,7 +208,7 @@ def kombo_journey(df_response, passengers=1):
     switcher_category = {
         'train': constants.TYPE_TRAIN,
         'flight': constants.TYPE_PLANE,
-        'bus': constants.TYPE_BUS,
+        'bus': constants.TYPE_COACH,
     }
 
     # all itineraries :
@@ -251,9 +253,10 @@ def kombo_journey(df_response, passengers=1):
             local_distance_m = distance([leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]).m
             local_transportation_type = switcher_category[leg.transportType]
             local_emissions = 0
+            station_from = leg['name']
             step = TMW.Journey_step(i,
                                     _type=local_transportation_type,
-                                    label=f'{local_transportation_type} from {leg.name} to {leg.name_arr}',
+                                    label=f'{local_transportation_type} from {station_from} to {leg.name_arr}',
                                     distance_m=int(local_distance_m),
                                     duration_s=(leg.arrivalTime - leg.departureTime).seconds,
                                     price_EUR=[leg.price_step],
@@ -303,7 +306,6 @@ def kombo_journey(df_response, passengers=1):
 
         journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
-        logger.info(f'we got kombo journey nb {i} and it a {journey_train.category}')
 
         # for journey in lst_journeys:
         #    journey.update()
@@ -314,16 +316,25 @@ def kombo_journey(df_response, passengers=1):
 def compute_kombo_journey(all_cities, start, fast_response=False):
     all_trips = pd.DataFrame()
 
+    found_train = False
     for origin_city in all_cities['origin']:
         for arrival_city in all_cities['arrival']:
             all_trips = all_trips.append(search_kombo(origin_city, arrival_city, start
                                                       , nb_passengers=1, fast_response=fast_response))
-            time.sleep(1)
+            # Stop looking when we found train journeys
+            if len(all_trips) > 0:
+                if len(all_trips[all_trips['transportType'] == 'train']) > 0:
+                    found_train = True
+                    break
+            time.sleep(0.1)
+        if found_train:
+            break
 
-    time.sleep(2)
     if len(all_trips) == 0:
         logger.warning('pas de all_trips')
         return list()
+
+    all_trips = all_trips.drop_duplicates()
 
     return kombo_journey(all_trips)
 
@@ -337,7 +348,7 @@ class KomboWorker(BaseWorker):
         super().__init__(connection, exchange)
 
     def execute(self, message):
-
+        time_start = time.perf_counter()
         logger.info("Got message: {}", message)
 
         geoloc_dep = message.payload['from'].split(',')
@@ -355,10 +366,10 @@ class KomboWorker(BaseWorker):
 
         kombo_journeys = compute_kombo_journey(all_cities, start)
 
-        logger.info(f'we found {len(kombo_journeys)} kombo journeys')
         kombo_json = list()
         limit = min(10,len(kombo_journeys))
         for journey in kombo_journeys[0:limit]:
             kombo_json.append(journey.to_json())
+        logger.info(f'we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}')
 
         return kombo_json
