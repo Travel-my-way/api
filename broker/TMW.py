@@ -66,7 +66,7 @@ class Journey:
             self.arrival_point = self.steps[-1].arrival_point
             self.departure_date = self.steps[0].departure_date
             self.arrival_date = self.steps[-1].arrival_date
-            self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_BUS,
+            self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_COACH,
                                                              constants.TYPE_FERRY, constants.TYPE_CARPOOOLING, constants.TYPE_CAR],
                                              [step.type for step in self.steps]))))
         return self
@@ -145,8 +145,8 @@ class Query:
 
     def to_json(self):
         json = {'id': self.id,
-                 'start': [round(self.start_point[0],4), round(self.start_point[1],4)],
-                 'end': [round(self.end_point[0],4), round(self.end_point[1],4)],
+                 'start_point': [round(self.start_point[0],4), round(self.start_point[1],4)],
+                 'end_point': [round(self.end_point[0],4), round(self.end_point[1],4)],
                  'departure_date': str(self.departure_date),
                 }
         return json
