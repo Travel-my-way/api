@@ -1,8 +1,10 @@
 import pandas as pd
+import copy
 import requests
 from datetime import datetime as dt, timedelta
 from geopy.distance import distance
 from loguru import logger
+import time
 
 from ..base import BaseWorker
 from .. import TMW
@@ -176,6 +178,7 @@ class FerryWorker(BaseWorker):
 
     def execute(self, message):
         # self.ouibus_database = update_stop_list()
+        time_start = time.perf_counter()
 
         logger.info("Got message: {}", message)
         logger.info("len ferry_db: {}", len(self.ferry_database))
@@ -216,24 +219,44 @@ class FerryWorker(BaseWorker):
             kombo_arr = kombo.compute_kombo_journey(cities_port_arr, start=departure_date.strftime('%Y-%m-%d'),
                                                     fast_response=True)
 
+            additional_journeys = list()
             for journey_ferry in ferry_journeys:
+                new_journey = copy.copy(journey_ferry)
+                train_found_dep = False
+                bus_found_dep = False
+                train_found_arr = False
+                bus_found_arr = False
                 if len(kombo_dep) > 0:
                     for kombo_journey in kombo_dep:
-                        if kombo_journey.category == [constants.TYPE_TRAIN]:
+                        if (kombo_journey.category == [constants.TYPE_TRAIN]) & (not train_found_dep):
                             journey_ferry.add_steps(kombo_journey.steps, start_end=True)
-                            break
-                # else :
+                            train_found_dep = True
+                        if (kombo_journey.category == [constants.TYPE_COACH]) & (not bus_found_dep):
+                            new_journey.add_steps(kombo_journey.steps, start_end=True)
+                            bus_found_dep = True
+                    # else :
                 #     car_journey = ors.ors_query_directions()
                 if len(kombo_arr) > 0:
                     for kombo_journey in kombo_arr:
-                        if kombo_journey.category == [constants.TYPE_TRAIN]:
+                        if (kombo_journey.category == [constants.TYPE_TRAIN]) & (not train_found_arr):
                             journey_ferry.add_steps(kombo_journey.steps, start_end=False)
-                            break
+                            train_found_arr = True
+                        if (kombo_journey.category == [constants.TYPE_COACH]) & (not bus_found_arr):
+                            new_journey.add_steps(kombo_journey.steps, start_end=False)
+                            bus_found_arr = True
+
+                if (bus_found_arr or bus_found_dep) & (train_found_arr or train_found_dep):
+                    additional_journeys.append(new_journey)
+                elif(bus_found_arr or bus_found_dep) & (not(train_found_arr or train_found_dep)):
+                    # if there is no train, we only
+                    journey_ferry = new_journey
+
+            ferry_journeys = ferry_journeys + additional_journeys
 
         ferry_jsons = list()
         for journey in ferry_journeys:
             ferry_jsons.append(journey.to_json())
-        logger.info(f'ici ferry on a envoyé {len(ferry_journeys)} journey sur le lapin cretin')
+        logger.info(f'ici ferry on a envoyé {len(ferry_journeys)} journey en {time.perf_counter()-time_start}')
         return ferry_jsons
 
 
