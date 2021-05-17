@@ -16,7 +16,6 @@ def pandas_explode(df, column_to_explode):
     """
     Similar to Hive's EXPLODE function, take a column with iterable elements, and flatten the iterable to one element
     per observation in the output table
-
     :param df: A dataframe to explod
     :type df: pandas.DataFrame
     :param column_to_explode:
@@ -324,4 +323,3 @@ class OuiBusWorker(BaseWorker):
         all_trips = format_ouibus_response(all_trips[all_trips.available], self.ouibus_database)
 
         return ouibus_journeys(all_trips)
-
