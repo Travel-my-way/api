@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime as dt
 from geopy.distance import distance
 from loguru import logger
+import time
 
 from ..base import BaseWorker
 from .. import TMW
@@ -59,7 +60,7 @@ def compute_plane_journey(all_airports, plane_db):
         logger.warning('pas de all_trips')
         return None
 
-    return get_planes(all_trips)
+    return all_trips
 
 
 def get_planes(origin_airport, arrival_airport, plane_db):
@@ -68,8 +69,8 @@ def get_planes(origin_airport, arrival_airport, plane_db):
     """
 
     # We search for direct liaison
-    relevant_journeys = plane_db[(plane_db.airport_dep_first == origin_airport) &
-                                 (plane_db.airport_arr_first == arrival_airport)]
+    relevant_journeys = plane_db[(plane_db.airport_from_first == origin_airport) &
+                                 (plane_db.airport_to_first == arrival_airport)]
 
     if len(relevant_journeys) > 0:
         relevant_journeys = relevant_journeys[['flight_number_first', 'airport_from_first', 'airport_to_first',
@@ -82,8 +83,8 @@ def get_planes(origin_airport, arrival_airport, plane_db):
 
     else :
         # We search for liaison with transfert
-        relevant_journeys = plane_db[(plane_db.airport_dep_first == origin_airport) &
-                                     (plane_db.airport_arr_sec == arrival_airport)]
+        relevant_journeys = plane_db[(plane_db.airport_from_first == origin_airport) &
+                                     (plane_db.airport_to_sec == arrival_airport)]
 
         if len(relevant_journeys) > 0:
             relevant_journeys['nb_step'] = 2
@@ -234,7 +235,7 @@ class PlaneWorker(BaseWorker):
 
     def execute(self, message):
         # self.ouibus_database = update_stop_list()
-
+        time_start = time.perf_counter()
         logger.info("Got message: {}", message)
         logger.info("len airport_db: {}", len(self.airport_database))
         logger.info("len plane_db: {}", len(self.plane_database))
@@ -260,7 +261,7 @@ class PlaneWorker(BaseWorker):
         plane_jsons = list()
         for journey in plane_journeys:
             plane_jsons.append(journey.to_json())
-        logger.info(f'ici planes on a envoyé {len(plane_journeys)} journey')
+        logger.info(f'ici planes on a envoyé {len(plane_journeys)} journey en {time.perf_counter()-time_start}')
 
         return plane_jsons
 

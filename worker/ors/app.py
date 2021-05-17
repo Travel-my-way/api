@@ -1,4 +1,5 @@
 from loguru import logger
+import time
 
 from ..base import BaseWorker
 
@@ -120,7 +121,7 @@ class ORSWorker(BaseWorker):
     routing_key = "voiture"
 
     def execute(self, message):
-
+        time_start = time.perf_counter()
         logger.info("Got message: {}", message)
         geoloc_dep = message.payload['from'].split(',')
         geoloc_dep[0] = float(geoloc_dep[0])
@@ -137,6 +138,7 @@ class ORSWorker(BaseWorker):
         if ors_journey:
             response = list()
             response.append(ors_journey.to_json())
+            logger.info(f'reponse en en {time.perf_counter()-time_start}')
             return response
 
         else:

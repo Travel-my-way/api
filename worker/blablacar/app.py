@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
 import copy
+import time
 
 from datetime import datetime as dt, timedelta
 
@@ -10,6 +11,7 @@ from ..base import BaseWorker
 
 from .. import constants
 from .. import TMW
+from .. import tmw_api_keys
 
 
 def pandas_explode(df, column_to_explode):
@@ -66,14 +68,14 @@ def search_for_trips(date, start_point, end_point):
     # formated_date = date + timedelta(seconds=3599)
     formated_date = dt.strptime(date, '%Y-%m-%d')
     formated_date = dt.strftime(formated_date, '%Y-%m-%dT%H:%m:%S')
-    params = { 'key' : '4RiVIJL2JNqgR9qH2ISI4afoRZ9Humgx',
-        'from_coordinate' : str(start_point[0]) + ',' + str(start_point[1]),
-         'to_coordinate' : str(end_point[0]) + ',' + str(end_point[1]),
-         'currency' : 'EUR',
-         'locale' : 'fr-FR',
-         'start_date_local': formated_date,
-         'count' : 10
-         }
+    params = {'key' : tmw_api_keys.BLABLACAR_API_KEY,
+               'from_coordinate': str(start_point[0]) + ',' + str(start_point[1]),
+               'to_coordinate': str(end_point[0]) + ',' + str(end_point[1]),
+               'currency': 'EUR',
+               'locale': 'fr-FR',
+               'start_date_local': formated_date,
+               'count': 10
+              }
 
     response = requests.get(url, params=params)
 
@@ -156,7 +158,8 @@ def blablacar_journey(df_response):
                                 gCO2=0,
                                 departure_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
                                 arrival_point=[itinerary.latitude.iloc[0], itinerary.longitude.iloc[0]],
-                                departure_date=itinerary.date_time.iat[0].timestamp() - constants.WAITING_PERIOD_BLABLACAR,
+                                departure_date=itinerary.date_time.iat[0].timestamp() -
+                                               constants.WAITING_PERIOD_BLABLACAR,
                                 arrival_date=itinerary.date_time.iat[0].timestamp(),
                                 bike_friendly=False,
                                 geojson=[],
@@ -229,6 +232,7 @@ class BlaBlaCarWorker(BaseWorker):
 
     def execute(self, message):
         # self.ouibus_database = update_stop_list()
+        time_start = time.perf_counter()
         logger.info("Got message: {}", message)
 
         geoloc_dep = message.payload['from'].split(',')
@@ -248,6 +252,8 @@ class BlaBlaCarWorker(BaseWorker):
         blablacar_json = list()
         for journey in blablacar_journeys:
             blablacar_json.append(journey.to_json())
+
+        logger.info(f'{len(blablacar_journeys)} journey en {time.perf_counter()-time_start}')
 
         return blablacar_json
 
