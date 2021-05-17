@@ -8,6 +8,7 @@ from navitia_client import Client
 from shapely.geometry import Point
 import re
 import unicodedata
+from geopy import distance
 from datetime import datetime
 import shapely.wkt
 
@@ -81,19 +82,19 @@ logger.info(_NAVITIA_COV.head(1))
 
 def navitia_query_directions(query, _id=0):
     navitia_client = start_navitia_client()
+    start = query['start_point']
+    end = query['end_point']
     try:
-        navitia_region = find_navita_coverage_for_points(query.start_point, query.end_point, _NAVITIA_COV)
+        navitia_region = find_navita_coverage_for_points(start, end, _NAVITIA_COV)
     except:
-        logger.warning(f'on a pas trouve la region :( {query.start_point} {query.end_point}')
+        logger.warning(f'on a pas trouve la region :( {start} {end}')
         return None
         # raise ValueError("ERROR: COVERAGE ISSUE")
     # if start.navitia['name'] != end.navitia['name']:  # region name (ex: idf-fr)
     #     print('ERROR: NAVITIA query on 2 different regions')
 
-    # start_coord = ";".join(map(str, query.start_point))
-    # end_coord = ";".join(map(str, query.end_point))
-    start_coord = str(query.start_point[1]) + ";" + str(query.start_point[0])
-    end_coord = str(query.end_point[1]) + ";" + str(query.end_point[0])
+    start_coord = str(start[1]) + ";" + str(start[0])
+    end_coord = str(end[1]) + ";" + str(end[0])
     url = f'coverage/{navitia_region}/journeys?from={start_coord}&to={end_coord}'
     url = url + '&data_freshness=base_schedule&max_nb_journeys=3'
 
@@ -169,7 +170,7 @@ def navitia_journeys(json, _id=0):
     try:
         journeys = json['journeys']
     except Exception as e:
-        logger.warning('ERROR {}'.format(json['error']))
+        logger.warning('ERROR {}'.format(json))
         return None
     for j in journeys:
         i = _id
@@ -220,8 +221,8 @@ def navitia_journeys_sections_type_on_demand(json, _id=0):
     step = tmw.Journey_step(_id,
                             _type=display_information['network'].lower(),
                             label=label,
-                            distance_m=json['geojson']['properties'][0]['length'],
-                            duration_s=json['duration'],
+                            distance_m=int(json['geojson']['properties'][0]['length']),
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=json['co2_emission']['value'],
                             departure_point=departure_point,
@@ -267,8 +268,8 @@ def navitia_journeys_sections_type_public_transport(json, _id=0):
     step = tmw.Journey_step(_id,
                             _type=_type,
                             label=label,
-                            distance_m=json['geojson']['properties'][0]['length'],
-                            duration_s=json['duration'],
+                            distance_m=int(json['geojson']['properties'][0]['length']),
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=json['co2_emission']['value'],
                             departure_point=departure_point,
@@ -290,7 +291,7 @@ def navitia_journeys_sections_type_street_network(json, _id=0):
         'car': constants.TYPE_CAR,
     }
     label = '{} FROM {} TO {}'.format(
-        mode_to_type[mode],
+        mode_to_type.get(mode, 'unknown mode'),
         json['from']['name'],
         json['to']['name'],
     )
@@ -304,8 +305,8 @@ def navitia_journeys_sections_type_street_network(json, _id=0):
     step = tmw.Journey_step(_id,
                             _type=mode_to_type[mode],
                             label=label,
-                            distance_m=json['geojson']['properties'][0]['length'],
-                            duration_s=json['duration'],
+                            distance_m=int(json['geojson']['properties'][0]['length']),
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=json['co2_emission']['value'],
                             departure_point=departure_point,
@@ -326,7 +327,7 @@ def navitia_journeys_sections_type_crow_fly(json, _id=0):
         'car': constants.TYPE_CAR,
     }
     label = '{} FROM {} TO {}'.format(
-        mode_to_type[mode],
+        mode_to_type.get(mode, 'unknown mode'),
         json['from']['name'],
         json['to']['name'],
     )
@@ -337,11 +338,12 @@ def navitia_journeys_sections_type_crow_fly(json, _id=0):
                        float(json['from'][embedded_type_from]['coord']['lon'])]
     arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
                      float(json['to'][embedded_type_to]['coord']['lon'])]
+    distance_m = distance.distance(departure_point, arrival_point).m
     step = tmw.Journey_step(_id,
                             _type=mode_to_type[mode],
                             label=label,
-                            distance_m=json['to']['distance'],
-                            duration_s=json['duration'],
+                            distance_m=int(distance_m),
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=json['co2_emission']['value'],
                             departure_point=departure_point,
@@ -361,8 +363,9 @@ def navitia_journeys_sections_type_transfer(json, _id=0):
         'walking': constants.TYPE_WALK,
         'bike': constants.TYPE_BIKE,
         'car': constants.TYPE_CAR,
+        'stay_in': constants.TYPE_WAIT,
     }
-    label = '{} FROM {} TO {}'.format(mode_to_type[mode], json['from']['name'], json['to']['name'])
+    label = '{} FROM {} TO {}'.format(mode_to_type.get(mode, 'unknown mode'), json['from']['name'], json['to']['name'])
     embedded_type_from = json['from']['embedded_type']
     embedded_type_to = json['to']['embedded_type']
 
@@ -373,8 +376,8 @@ def navitia_journeys_sections_type_transfer(json, _id=0):
     step = tmw.Journey_step(_id,
                             _type=mode_to_type[mode],
                             label=label,
-                            distance_m=json['geojson']['properties'][0]['length'],
-                            duration_s=json['duration'],
+                            distance_m=int(json['geojson']['properties'][0]['length']),
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=json['co2_emission']['value'],
                             departure_point=departure_point,
@@ -393,7 +396,7 @@ def navitia_journeys_sections_type_waiting(json, _id=0):
                             _type=constants.TYPE_WAIT,
                             label='wait',
                             distance_m=0,
-                            duration_s=json['duration'],
+                            duration_s=int(json['duration']),
                             price_EUR=[0],
                             gCO2=0,
                             departure_point=[0,0],
