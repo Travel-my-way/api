@@ -2,6 +2,7 @@ from flask import Flask
 from loguru import logger
 
 from .api import blueprint as api_blueprint
+from .tools import tools_bp
 from .config import config
 from .log import InterceptHandler
 from .redis import redis_client
@@ -32,6 +33,9 @@ def create_app(env):
 
     # API Blueprint
     app.register_blueprint(api_blueprint)
+
+    # Technical routes
+    app.register_blueprint(tools_bp, url_prefix="/tools")
 
     app.logger.info("Running on %s", app.config["REDIS_URL"])
 
