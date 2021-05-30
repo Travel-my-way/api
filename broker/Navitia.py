@@ -1,8 +1,9 @@
 import pandas as pd
 from loguru import logger
-from . import tmw_api_keys
+from . import config as tmw_api_keys
 from . import TMW as tmw
 from . import constants
+
 # import folium
 from navitia_client import Client
 from shapely.geometry import Point
@@ -19,25 +20,27 @@ def get_navitia_coverage(client):
     We call the API to get all those coverage and know which coverage region to call for a given scenario
     """
     # call API for all coverages
-    response_cov = client.raw('coverage', multipage=False, page_limit=10, verbose=True)
+    response_cov = client.raw("coverage", multipage=False, page_limit=10, verbose=True)
     # turn coverage into DF
-    df_cov = pd.DataFrame.from_dict(response_cov.json()['regions'])
+    df_cov = pd.DataFrame.from_dict(response_cov.json()["regions"])
     # extract the geographical shape into polygon
-    df_cov['polygon_clean'] = df_cov.apply(clean_polygon_for_coverage, axis=1)
+    df_cov["polygon_clean"] = df_cov.apply(clean_polygon_for_coverage, axis=1)
     # Clean NaN polygons
     df_cov = df_cov[~pd.isna(df_cov.polygon_clean)].reset_index(drop=True)
     # Get the area of each polygon
-    df_cov['area_polygon_clean'] = df_cov.loc[:, 'polygon_clean'].apply(lambda x: x.area)
+    df_cov["area_polygon_clean"] = df_cov.loc[:, "polygon_clean"].apply(
+        lambda x: x.area
+    )
     return df_cov
 
 
 def clean_polygon_for_coverage(x):
     # Test whether shape is not empty
-    if x['shape'] == '':
+    if x["shape"] == "":
         # Polygon is null
         return None
     # Transform the string in multipolygon
-    mp_loc = shapely.wkt.loads(x['shape'])
+    mp_loc = shapely.wkt.loads(x["shape"])
     # Then into a list of polygon
     p_loc = list(mp_loc)
     # Test whether there are several polygons
@@ -57,10 +60,13 @@ def find_navita_coverage_for_points(point_from, point_to, df_cov):
     point_to = Point(point_to[1], point_to[0])
     # test if points are within polygon for each region
     are_points_in_cov = df_cov.apply(
-        lambda x: (x.polygon_clean.contains(point_from)) & (x.polygon_clean.contains(point_to)), axis=1)
+        lambda x: (x.polygon_clean.contains(point_from))
+        & (x.polygon_clean.contains(point_to)),
+        axis=1,
+    )
     # extract the id of the smallest region around the point
     ix_id_cov = df_cov[are_points_in_cov].area_polygon_clean.idxmin()
-    id_cov = df_cov.loc[ix_id_cov, 'id']
+    id_cov = df_cov.loc[ix_id_cov, "id"]
     return id_cov
 
 
@@ -74,6 +80,7 @@ def start_navitia_client():
     navitia_client = Client(user=navitia_api_key)
     return navitia_client
 
+
 # ATTENTION: C'est quoi ce bout de code. Pas très propre... Doit être dans le main.py?
 navitia_client = start_navitia_client()
 _NAVITIA_COV = get_navitia_coverage(navitia_client)
@@ -82,12 +89,12 @@ logger.info(_NAVITIA_COV.head(1))
 
 def navitia_query_directions(query, _id=0):
     navitia_client = start_navitia_client()
-    start = query['start_point']
-    end = query['end_point']
+    start = query["start_point"]
+    end = query["end_point"]
     try:
         navitia_region = find_navita_coverage_for_points(start, end, _NAVITIA_COV)
-    except:
-        logger.warning(f'on a pas trouve la region :( {start} {end}')
+    except:  # noqa E722
+        logger.warning(f"on a pas trouve la region :( {start} {end}")
         return None
         # raise ValueError("ERROR: COVERAGE ISSUE")
     # if start.navitia['name'] != end.navitia['name']:  # region name (ex: idf-fr)
@@ -95,16 +102,16 @@ def navitia_query_directions(query, _id=0):
 
     start_coord = str(start[1]) + ";" + str(start[0])
     end_coord = str(end[1]) + ";" + str(end[0])
-    url = f'coverage/{navitia_region}/journeys?from={start_coord}&to={end_coord}'
-    url = url + '&data_freshness=base_schedule&max_nb_journeys=3'
+    url = f"coverage/{navitia_region}/journeys?from={start_coord}&to={end_coord}"
+    url = url + "&data_freshness=base_schedule&max_nb_journeys=3"
 
     step = navitia_client.raw(url, multipage=False)
     if step.status_code == 200:
         return navitia_journeys(step.json())
-        #return step.json()
+        # return step.json()
 
     else:
-        logger.warning(f'ERROR {step.status_code} from Navitia for {url}')
+        logger.warning(f"ERROR {step.status_code} from Navitia for {url}")
         return None
 
 
@@ -129,16 +136,20 @@ def navitia_query_directions(query, _id=0):
 #     return _map
 
 
-#UTILISER DANS LA CLASSE POINT DE TMW, MAIS CETTE CLASSE EST UTILISéE NUL PART, A SUPPRIMER?
+# UTILISER DANS LA CLASSE POINT DE TMW, MAIS CETTE CLASSE EST UTILISéE NUL PART, A SUPPRIMER?
 def navitia_coverage_gpspoint(lon, lat):  #
     navitia_client = start_navitia_client()
-    cov = navitia_client.raw('coverage/{};{}'.format(lon, lat), multipage=False, page_limit=10, verbose=True)
+    cov = navitia_client.raw(
+        "coverage/{};{}".format(lon, lat), multipage=False, page_limit=10, verbose=True
+    )
     coverage = cov.json()
     try:
-        for i, region in enumerate(coverage['regions']):
-            coverage['regions'][i]['shape'] = navitia_geostr_to_polygon(region['shape'])
-    except:
-        logger.error('ERROR: AREA NOT COVERED BY NAVITIA (lon:{},lat:{})'.format(lon, lat))
+        for i, region in enumerate(coverage["regions"]):
+            coverage["regions"][i]["shape"] = navitia_geostr_to_polygon(region["shape"])
+    except:  # noqa E722
+        logger.error(
+            "ERROR: AREA NOT COVERED BY NAVITIA (lon:{},lat:{})".format(lon, lat)
+        )
         return False
     return coverage
 
@@ -168,19 +179,19 @@ def navitia_journeys(json, _id=0):
     # all journeys loop
     lst_journeys = list()
     try:
-        journeys = json['journeys']
-    except Exception as e:
-        logger.warning('ERROR {}'.format(json))
+        journeys = json["journeys"]
+    except Exception:
+        logger.warning("ERROR {}".format(json))
         return None
     for j in journeys:
         i = _id
         # journey loop
         lst_sections = list()
-        for section in j['sections']:
+        for section in j["sections"]:
             try:
                 lst_sections.append(navitia_journeys_sections_type(section, _id=i))
             except Exception as e:
-                logger.warning('Navitia ERROR : ')
+                logger.warning("Navitia ERROR : ")
                 logger.warning(e)
                 logger.warning(section)
             i = i + 1
@@ -190,223 +201,276 @@ def navitia_journeys(json, _id=0):
 
 def navitia_journeys_sections_type(json, _id=0):
     switcher_journeys_sections_type = {
-        'public_transport': navitia_journeys_sections_type_public_transport,
-        'street_network': navitia_journeys_sections_type_street_network,
-        'waiting': navitia_journeys_sections_type_waiting,
-        'transfer': navitia_journeys_sections_type_transfer,
-        'on_demand_transport': navitia_journeys_sections_type_on_demand,
-        'crow_fly': navitia_journeys_sections_type_crow_fly,
+        "public_transport": navitia_journeys_sections_type_public_transport,
+        "street_network": navitia_journeys_sections_type_street_network,
+        "waiting": navitia_journeys_sections_type_waiting,
+        "transfer": navitia_journeys_sections_type_transfer,
+        "on_demand_transport": navitia_journeys_sections_type_on_demand,
+        "crow_fly": navitia_journeys_sections_type_crow_fly,
     }
-    func = switcher_journeys_sections_type.get(json['type'], "Invalid navitia type")
+    func = switcher_journeys_sections_type.get(json["type"], "Invalid navitia type")
 
     step = func(json, _id)
     return step
 
 
 def navitia_journeys_sections_type_on_demand(json, _id=0):
-    display_information = json['display_informations']
-    label = '{} {} / {} / direction: {}'.format(
-        display_information['physical_mode'],
-        display_information['code'],
-        display_information['name'],
-        display_information['direction'],
+    display_information = json["display_informations"]
+    label = "{} {} / {} / direction: {}".format(
+        display_information["physical_mode"],
+        display_information["code"],
+        display_information["name"],
+        display_information["direction"],
     )
-    embedded_type_from = json['from']['embedded_type']
-    embedded_type_to = json['to']['embedded_type']
+    embedded_type_from = json["from"]["embedded_type"]
+    embedded_type_to = json["to"]["embedded_type"]
 
-    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
-                       float(json['from'][embedded_type_from]['coord']['lon'])]
-    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
-                     float(json['to'][embedded_type_to]['coord']['lon'])]
-    step = tmw.Journey_step(_id,
-                            _type=display_information['network'].lower(),
-                            label=label,
-                            distance_m=int(json['geojson']['properties'][0]['length']),
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=json['co2_emission']['value'],
-                            departure_point=departure_point,
-                            arrival_point=arrival_point,
-                            departure_stop_name=json['from']['name'],
-                            arrival_stop_name=json['to']['name'],
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            )
+    departure_point = [
+        float(json["from"][embedded_type_from]["coord"]["lat"]),
+        float(json["from"][embedded_type_from]["coord"]["lon"]),
+    ]
+    arrival_point = [
+        float(json["to"][embedded_type_to]["coord"]["lat"]),
+        float(json["to"][embedded_type_to]["coord"]["lon"]),
+    ]
+    step = tmw.Journey_step(
+        _id,
+        _type=display_information["network"].lower(),
+        label=label,
+        distance_m=int(json["geojson"]["properties"][0]["length"]),
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=json["co2_emission"]["value"],
+        departure_point=departure_point,
+        arrival_point=arrival_point,
+        departure_stop_name=json["from"]["name"],
+        arrival_stop_name=json["to"]["name"],
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+    )
     return step
 
 
 def navitia_journeys_sections_type_public_transport(json, _id=0):
-    display_information = json['display_informations']
+    display_information = json["display_informations"]
 
-    label = '{} {} / {} / direction: {}'.format(
-        display_information['physical_mode'],
-        display_information['code'],
-        display_information['name'],
-        display_information['direction'],
+    label = "{} {} / {} / direction: {}".format(
+        display_information["physical_mode"],
+        display_information["code"],
+        display_information["name"],
+        display_information["direction"],
     )
     switcher_public_transport_type = {
-        'Métro': constants.TYPE_METRO,
-        'Metro': constants.TYPE_METRO,
-        'Bus': constants.TYPE_BUS,
-        'Tramway': constants.TYPE_TRAM,
-        'RER': constants.TYPE_METRO,
-        'Train': constants.TYPE_METRO,
+        "Métro": constants.TYPE_METRO,
+        "Metro": constants.TYPE_METRO,
+        "Bus": constants.TYPE_BUS,
+        "Tramway": constants.TYPE_TRAM,
+        "RER": constants.TYPE_METRO,
+        "Train": constants.TYPE_METRO,
     }
-    _type = switcher_public_transport_type.get(display_information['commercial_mode'],
-                                               "unknown public transport")
+    _type = switcher_public_transport_type.get(
+        display_information["commercial_mode"], "unknown public transport"
+    )
     # _type = display_information['commercial_mode']
     # _type = unicodedata.normalize('NFD', _type).encode('ascii', 'ignore').lower()
 
-    embedded_type_from = json['from']['embedded_type']
-    embedded_type_to = json['to']['embedded_type']
+    embedded_type_from = json["from"]["embedded_type"]
+    embedded_type_to = json["to"]["embedded_type"]
 
-    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
-                       float(json['from'][embedded_type_from]['coord']['lon'])]
-    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
-                     float(json['to'][embedded_type_to]['coord']['lon'])]
+    departure_point = [
+        float(json["from"][embedded_type_from]["coord"]["lat"]),
+        float(json["from"][embedded_type_from]["coord"]["lon"]),
+    ]
+    arrival_point = [
+        float(json["to"][embedded_type_to]["coord"]["lat"]),
+        float(json["to"][embedded_type_to]["coord"]["lon"]),
+    ]
 
-    step = tmw.Journey_step(_id,
-                            _type=_type,
-                            label=label,
-                            distance_m=int(json['geojson']['properties'][0]['length']),
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=json['co2_emission']['value'],
-                            departure_point=departure_point,
-                            arrival_point=arrival_point,
-                            departure_stop_name=json['from']['name'],
-                            arrival_stop_name=json['to']['name'],
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            )
+    step = tmw.Journey_step(
+        _id,
+        _type=_type,
+        label=label,
+        distance_m=int(json["geojson"]["properties"][0]["length"]),
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=json["co2_emission"]["value"],
+        departure_point=departure_point,
+        arrival_point=arrival_point,
+        departure_stop_name=json["from"]["name"],
+        arrival_stop_name=json["to"]["name"],
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+    )
 
     return step
 
 
 def navitia_journeys_sections_type_street_network(json, _id=0):
-    mode = json['mode']
+    mode = json["mode"]
     mode_to_type = {
-        'walking': constants.TYPE_WALK,
-        'bike': constants.TYPE_BIKE,
-        'car': constants.TYPE_CAR,
+        "walking": constants.TYPE_WALK,
+        "bike": constants.TYPE_BIKE,
+        "car": constants.TYPE_CAR,
     }
-    label = '{} FROM {} TO {}'.format(
-        mode_to_type.get(mode, 'unknown mode'),
-        json['from']['name'],
-        json['to']['name'],
+    label = "{} FROM {} TO {}".format(
+        mode_to_type.get(mode, "unknown mode"),
+        json["from"]["name"],
+        json["to"]["name"],
     )
-    embedded_type_from = json['from']['embedded_type']
-    embedded_type_to = json['to']['embedded_type']
+    embedded_type_from = json["from"]["embedded_type"]
+    embedded_type_to = json["to"]["embedded_type"]
 
-    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
-                       float(json['from'][embedded_type_from]['coord']['lon'])]
-    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
-                     float(json['to'][embedded_type_to]['coord']['lon'])]
-    step = tmw.Journey_step(_id,
-                            _type=mode_to_type[mode],
-                            label=label,
-                            distance_m=int(json['geojson']['properties'][0]['length']),
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=json['co2_emission']['value'],
-                            departure_point=departure_point,
-                            arrival_point=arrival_point,
-                            departure_stop_name=json['from']['name'],
-                            arrival_stop_name=json['to']['name'],
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            )
+    departure_point = [
+        float(json["from"][embedded_type_from]["coord"]["lat"]),
+        float(json["from"][embedded_type_from]["coord"]["lon"]),
+    ]
+    arrival_point = [
+        float(json["to"][embedded_type_to]["coord"]["lat"]),
+        float(json["to"][embedded_type_to]["coord"]["lon"]),
+    ]
+    step = tmw.Journey_step(
+        _id,
+        _type=mode_to_type[mode],
+        label=label,
+        distance_m=int(json["geojson"]["properties"][0]["length"]),
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=json["co2_emission"]["value"],
+        departure_point=departure_point,
+        arrival_point=arrival_point,
+        departure_stop_name=json["from"]["name"],
+        arrival_stop_name=json["to"]["name"],
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+    )
     return step
 
 
 def navitia_journeys_sections_type_crow_fly(json, _id=0):
-    mode = json['mode']
+    mode = json["mode"]
     mode_to_type = {
-        'walking': constants.TYPE_WALK,
-        'bike': constants.TYPE_BIKE,
-        'car': constants.TYPE_CAR,
+        "walking": constants.TYPE_WALK,
+        "bike": constants.TYPE_BIKE,
+        "car": constants.TYPE_CAR,
     }
-    label = '{} FROM {} TO {}'.format(
-        mode_to_type.get(mode, 'unknown mode'),
-        json['from']['name'],
-        json['to']['name'],
+    label = "{} FROM {} TO {}".format(
+        mode_to_type.get(mode, "unknown mode"),
+        json["from"]["name"],
+        json["to"]["name"],
     )
-    embedded_type_from = json['from']['embedded_type']
-    embedded_type_to = json['to']['embedded_type']
+    embedded_type_from = json["from"]["embedded_type"]
+    embedded_type_to = json["to"]["embedded_type"]
 
-    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
-                       float(json['from'][embedded_type_from]['coord']['lon'])]
-    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
-                     float(json['to'][embedded_type_to]['coord']['lon'])]
+    departure_point = [
+        float(json["from"][embedded_type_from]["coord"]["lat"]),
+        float(json["from"][embedded_type_from]["coord"]["lon"]),
+    ]
+    arrival_point = [
+        float(json["to"][embedded_type_to]["coord"]["lat"]),
+        float(json["to"][embedded_type_to]["coord"]["lon"]),
+    ]
     distance_m = distance.distance(departure_point, arrival_point).m
-    step = tmw.Journey_step(_id,
-                            _type=mode_to_type[mode],
-                            label=label,
-                            distance_m=int(distance_m),
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=json['co2_emission']['value'],
-                            departure_point=departure_point,
-                            arrival_point=arrival_point,
-                            departure_stop_name=json['from']['name'],
-                            arrival_stop_name=json['to']['name'],
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            )
+    step = tmw.Journey_step(
+        _id,
+        _type=mode_to_type[mode],
+        label=label,
+        distance_m=int(distance_m),
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=json["co2_emission"]["value"],
+        departure_point=departure_point,
+        arrival_point=arrival_point,
+        departure_stop_name=json["from"]["name"],
+        arrival_stop_name=json["to"]["name"],
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+    )
 
     return step
 
 
 def navitia_journeys_sections_type_transfer(json, _id=0):
-    mode = json['transfer_type']
+    mode = json["transfer_type"]
     mode_to_type = {
-        'walking': constants.TYPE_WALK,
-        'bike': constants.TYPE_BIKE,
-        'car': constants.TYPE_CAR,
-        'stay_in': constants.TYPE_WAIT,
+        "walking": constants.TYPE_WALK,
+        "bike": constants.TYPE_BIKE,
+        "car": constants.TYPE_CAR,
+        "stay_in": constants.TYPE_WAIT,
     }
-    label = '{} FROM {} TO {}'.format(mode_to_type.get(mode, 'unknown mode'), json['from']['name'], json['to']['name'])
-    embedded_type_from = json['from']['embedded_type']
-    embedded_type_to = json['to']['embedded_type']
+    label = "{} FROM {} TO {}".format(
+        mode_to_type.get(mode, "unknown mode"), json["from"]["name"], json["to"]["name"]
+    )
+    embedded_type_from = json["from"]["embedded_type"]
+    embedded_type_to = json["to"]["embedded_type"]
 
-    departure_point = [float(json['from'][embedded_type_from]['coord']['lat']),
-                       float(json['from'][embedded_type_from]['coord']['lon'])]
-    arrival_point = [float(json['to'][embedded_type_to]['coord']['lat']),
-                     float(json['to'][embedded_type_to]['coord']['lon'])]
-    step = tmw.Journey_step(_id,
-                            _type=mode_to_type[mode],
-                            label=label,
-                            distance_m=int(json['geojson']['properties'][0]['length']),
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=json['co2_emission']['value'],
-                            departure_point=departure_point,
-                            arrival_point=arrival_point,
-                            departure_stop_name=json['from']['name'],
-                            arrival_stop_name=json['to']['name'],
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            geojson=json['geojson'],
-                            )
+    departure_point = [
+        float(json["from"][embedded_type_from]["coord"]["lat"]),
+        float(json["from"][embedded_type_from]["coord"]["lon"]),
+    ]
+    arrival_point = [
+        float(json["to"][embedded_type_to]["coord"]["lat"]),
+        float(json["to"][embedded_type_to]["coord"]["lon"]),
+    ]
+    step = tmw.Journey_step(
+        _id,
+        _type=mode_to_type[mode],
+        label=label,
+        distance_m=int(json["geojson"]["properties"][0]["length"]),
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=json["co2_emission"]["value"],
+        departure_point=departure_point,
+        arrival_point=arrival_point,
+        departure_stop_name=json["from"]["name"],
+        arrival_stop_name=json["to"]["name"],
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        geojson=json["geojson"],
+    )
     return step
 
 
 def navitia_journeys_sections_type_waiting(json, _id=0):
-    step = tmw.Journey_step(_id,
-                            _type=constants.TYPE_WAIT,
-                            label='wait',
-                            distance_m=0,
-                            duration_s=int(json['duration']),
-                            price_EUR=[0],
-                            gCO2=0,
-                            departure_point=[0,0],
-                            arrival_point=[0,0],
-                            departure_stop_name='',
-                            arrival_stop_name='',
-                            departure_date=datetime.strptime(json['departure_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            arrival_date=datetime.strptime(json['arrival_date_time'], '%Y%m%dT%H%M%S').timestamp(),
-                            geojson='',
-                            )
+    step = tmw.Journey_step(
+        _id,
+        _type=constants.TYPE_WAIT,
+        label="wait",
+        distance_m=0,
+        duration_s=int(json["duration"]),
+        price_EUR=[0],
+        gCO2=0,
+        departure_point=[0, 0],
+        arrival_point=[0, 0],
+        departure_stop_name="",
+        arrival_stop_name="",
+        departure_date=datetime.strptime(
+            json["departure_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        arrival_date=datetime.strptime(
+            json["arrival_date_time"], "%Y%m%dT%H%M%S"
+        ).timestamp(),
+        geojson="",
+    )
     return step
 
 
@@ -425,4 +489,3 @@ def navitia_journeys_sections_type_waiting(json, _id=0):
 # import pytz
 # TZ_LOC = pytz.timezone('Europe/Paris')
 # TZ_LOC.localize(...)
-
