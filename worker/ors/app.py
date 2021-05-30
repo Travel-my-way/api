@@ -4,7 +4,7 @@ import time
 from ..base import BaseWorker
 
 from .. import constants
-from .. import tmw_api_keys
+from .. import config as tmw_api_keys
 from .. import TMW
 
 
@@ -18,11 +18,13 @@ OPEN ROUTE SERVICES FUNCTIONS
 
 def start_ors_client():
     ors_api_key = tmw_api_keys.ORS_API_KEY
-    ors_client = openrouteservice.Client(key=ors_api_key) # Specify your personal API key
+    ors_client = openrouteservice.Client(
+        key=ors_api_key
+    )  # Specify your personal API key
     return ors_client
 
 
-def ors_profile(profile): # Should be integrated into CONSTANTS.py
+def ors_profile(profile):  # Should be integrated into CONSTANTS.py
     dict_ors_profile = {
         "driving-car": constants.TYPE_CAR,
         "driving-hgv": "",
@@ -31,12 +33,14 @@ def ors_profile(profile): # Should be integrated into CONSTANTS.py
         "cycling-regular": "bike",
         "cycling-road": "bike",
         "cycling-mountain": "bike",
-        "cycling-electric": "bike"
+        "cycling-electric": "bike",
     }
     return dict_ors_profile[profile]
 
 
-def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, geometry=False):
+def ors_query_directions(
+    query, profile="driving-car", toll_price=True, _id=0, geometry=False
+):
     """
     start (class point)
     end (class point)
@@ -44,7 +48,10 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
     "cycling-mountain", "cycling-electric",]
     """
     ors_client = start_ors_client()
-    coord = [query['start_point'][::-1], query['end_point'][::-1]]   # WARNING it seems that [lon,lat] are not in the same order than for other API.
+    coord = [
+        query["start_point"][::-1],
+        query["end_point"][::-1],
+    ]  # WARNING it seems that [lon,lat] are not in the same order than for other API.
 
     try:
         ors_step = ors_client.directions(
@@ -52,33 +59,34 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
             profile=profile,
             instructions=False,
             geometry=geometry,
-            options={'avoid_features': ['ferries']},
+            options={"avoid_features": ["ferries"]},
         )
     except Exception as e:
-        logger.info('achtung brigitte !!!')
+        logger.info("achtung brigitte !!!")
         logger.info(e)
         return None
 
     # geojson = convert.decode_polyline(ors_step['routes'][0]['geometry'])
     # logger.info(ors_step)
 
-    local_distance = ors_step['routes'][0]['summary']['distance']
+    local_distance = ors_step["routes"][0]["summary"]["distance"]
     local_emissions = 0
 
-    formated_date = dt.strptime(query['departure_date'], '%Y-%m-%d')
+    formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
 
-    step = TMW.Journey_step(_id,
-                            _type=ors_profile(profile),
-                            label=profile,
-                            distance_m=local_distance,
-                            duration_s=ors_step['routes'][0]['summary']['duration'],
-                            price_EUR=[ors_gas_price(ors_step['routes'][0]['summary']['distance'])],
-                            gCO2=local_emissions,
-                            # geojson=geojson,
-                            departure_point=query['start_point'],
-                            arrival_point=query['end_point'],
-                            departure_date=int(formated_date.timestamp())
-                            )
+    step = TMW.Journey_step(
+        _id,
+        _type=ors_profile(profile),
+        label=profile,
+        distance_m=local_distance,
+        duration_s=ors_step["routes"][0]["summary"]["duration"],
+        price_EUR=[ors_gas_price(ors_step["routes"][0]["summary"]["distance"])],
+        gCO2=local_emissions,
+        # geojson=geojson,
+        departure_point=query["start_point"],
+        arrival_point=query["end_point"],
+        departure_date=int(formated_date.timestamp()),
+    )
     # Correct arrival_date based on departure_date
 
     step.arrival_date = step.departure_date + step.duration_s
@@ -86,10 +94,12 @@ def ors_query_directions(query, profile='driving-car', toll_price=True, _id=0, g
     # Add toll price (optional)
     step = ors_add_toll_price(step) if toll_price else step
 
-    ors_journey = TMW.Journey(0,
-                              departure_date=step.departure_date,
-                              arrival_date=step.arrival_date,
-                              steps=[step])
+    ors_journey = TMW.Journey(
+        0,
+        departure_date=step.departure_date,
+        arrival_date=step.arrival_date,
+        steps=[step],
+    )
     # Add category
     category_journey = list()
     for step in ors_journey.steps:
@@ -123,25 +133,26 @@ class ORSWorker(BaseWorker):
     def execute(self, message):
         time_start = time.perf_counter()
         logger.info("Got message: {}", message)
-        geoloc_dep = message.payload['from'].split(',')
+        geoloc_dep = message.payload["from"].split(",")
         geoloc_dep[0] = float(geoloc_dep[0])
         geoloc_dep[1] = float(geoloc_dep[1])
-        geoloc_arr = message.payload['to'].split(',')
+        geoloc_arr = message.payload["to"].split(",")
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        query = {'start_point': geoloc_dep,
-                 'end_point': geoloc_arr,
-                 'departure_date': message.payload['start']}
+        query = {
+            "start_point": geoloc_dep,
+            "end_point": geoloc_arr,
+            "departure_date": message.payload["start"],
+        }
         ors_journey = ors_query_directions(query)
 
         if ors_journey:
             response = list()
             response.append(ors_journey.to_json())
-            logger.info(f'reponse en en {time.perf_counter()-time_start}')
+            logger.info(f"reponse en en {time.perf_counter()-time_start}")
             return response
 
         else:
-            logger.info('No ORS journey found')
+            logger.info("No ORS journey found")
             return list()
-
