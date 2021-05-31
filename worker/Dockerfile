@@ -27,6 +27,6 @@ WORKDIR /home/appuser
 USER appuser
 
 # Install application into container
-COPY ./worker /app/worker
+COPY ./worker /home/appuser/worker
 
 ENTRYPOINT ["python", "-m", "worker"]
