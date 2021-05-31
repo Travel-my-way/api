@@ -17,12 +17,12 @@ COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
 
-FROM python:3.8-alpine AS runtime
+FROM base AS runtime
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
 
 # Create and switch to a new user
-RUN addgroup -S appgroup && adduser -S appuser -h /home/appuser -G appgroup
+RUN addgroup --gid 2000 appgroup && adduser --home /home/appuser --gid 2000 appuser
 WORKDIR /home/appuser
 USER appuser
 
