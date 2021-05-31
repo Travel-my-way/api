@@ -21,6 +21,13 @@ class BaseWorker(ConsumerProducerMixin):
             binding(exchange, routing_key="rq.#.{}".format(self.routing_key)),
         ]
 
+        logger.info(
+            "Listening on {} with keys {}/{}",
+            connection,
+            "rq.all",
+            "rq.#.{}".format(self.routing_key),
+        )
+
         self.queues = [Queue("", exchange, bindings=bindings)]
 
         self.result_queue = Queue("results", Exchange("results"), routing_key="results")
