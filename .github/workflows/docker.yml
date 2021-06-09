@@ -73,7 +73,7 @@ jobs:
   #         build_file: ./${{ matrix.component }}/Dockerfile
 
   deploy:
-    needs: build
+    # needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
 
