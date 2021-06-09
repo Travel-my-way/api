@@ -28,49 +28,49 @@ jobs:
 
   # Push image to GitHub Packages.
   # See also https://docs.docker.com/docker-hub/builds/
-  build:
-    # Ensure test job passes before pushing image.
-    needs: test
+  # build:
+  #   # Ensure test job passes before pushing image.
+  #   needs: test
 
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push'
 
-    strategy:
-      matrix:
-        component: [api, broker, worker]
+  #   strategy:
+  #     matrix:
+  #       component: [api, broker, worker]
 
-    permissions:
-      contents: read
-      packages: write
+  #   permissions:
+  #     contents: read
+  #     packages: write
 
-    steps:
-      - uses: actions/checkout@v2
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Set Image tag
-        run: |
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+  #     - name: Set Image tag
+  #       run: |
+  #         # Strip git ref prefix from version
+  #         VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
 
-          # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+  #         # Strip "v" prefix from tag name
+  #         [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
 
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "master" ] && VERSION=latest
+  #         # Use Docker `latest` tag convention
+  #         [ "$VERSION" == "master" ] && VERSION=latest
 
-          echo VERSION=$VERSION
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+  #         echo VERSION=$VERSION
+  #         echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
 
-      - name: Kaniko build
-        uses: aevea/action-kaniko@master
-        with:
-          registry: ghcr.io/travel-my-way
-          password: ${{ secrets.GITHUB_TOKEN }}
-          image: bonvoyage-${{ matrix.component }}
-          tag: ${{ env.VERSION }}
-          cache: true
-          cache_registry: cache
-          build_file: ./${{ matrix.component }}/Dockerfile
+  #     - name: Kaniko build
+  #       uses: aevea/action-kaniko@master
+  #       with:
+  #         registry: ghcr.io/travel-my-way
+  #         password: ${{ secrets.GITHUB_TOKEN }}
+  #         image: bonvoyage-${{ matrix.component }}
+  #         tag: ${{ env.VERSION }}
+  #         cache: true
+  #         cache_registry: cache
+  #         build_file: ./${{ matrix.component }}/Dockerfile
 
   deploy:
     needs: build
@@ -86,4 +86,4 @@ jobs:
         run: |
           sudo curl -sSL -o ~/argocd-cli https://argocd.bonvoyage-eco.net/download/argocd-linux-amd64
           export ARGOCD_AUTH_TOKEN=${{ secrets.ARGOCD_AUTH_TOKEN }}
-          argocd app list
+          ~/argocd-cli app list
