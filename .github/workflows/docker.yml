@@ -71,3 +71,9 @@ jobs:
           cache: true
           cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
+
+      - name: Publish to cluster
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://${{ secrets.ARGOCD_INSTANCE}}/download/argocd-linux-amd64
+          export ARGOCD_AUTH_TOKEN=${{ secrets.ARGOCD_AUTH_TOKEN }}
+          argocd app list
