@@ -75,7 +75,7 @@ jobs:
   deploy:
     # needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    #if: github.event_name == 'push'
 
     strategy:
       matrix:
@@ -84,6 +84,8 @@ jobs:
     steps:
       - name: Publish to cluster
         run: |
-          sudo curl -sSL -o ~/argocd-cli https://argocd.bonvoyage-eco.net/download/argocd-linux-amd64
+          export ARGOCD_SERVER=argocd.bonvoyage-eco.net
           export ARGOCD_AUTH_TOKEN=${{ secrets.ARGOCD_AUTH_TOKEN }}
+          curl -sSL -o ~/argocd-cli https://${ARGOCD_SERVER}/download/argocd-linux-amd64
+          chmod +x ~/argocd-cli
           ~/argocd-cli app list
