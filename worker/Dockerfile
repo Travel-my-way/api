@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir pipenv=='2020.11.15' && apt-get update && apt-get
 # Install python dependencies in /.venv
 COPY Pipfile .
 COPY Pipfile.lock .
-RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy --bare
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv --bare install --deploy
 
 
 FROM base AS runtime
