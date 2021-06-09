@@ -28,7 +28,7 @@ jobs:
 
   # Push image to GitHub Packages.
   # See also https://docs.docker.com/docker-hub/builds/
-  push:
+  build:
     # Ensure test job passes before pushing image.
     needs: test
 
@@ -72,8 +72,18 @@ jobs:
           cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    strategy:
+      matrix:
+        component: [api, broker, worker]
+
+    steps:
       - name: Publish to cluster
         run: |
-          sudo curl -sSL -o /usr/local/bin/argocd https://argocd.bonvoyage-eco.net/download/argocd-linux-amd64
+          sudo curl -sSL -o ~/argocd-cli https://argocd.bonvoyage-eco.net/download/argocd-linux-amd64
           export ARGOCD_AUTH_TOKEN=${{ secrets.ARGOCD_AUTH_TOKEN }}
           argocd app list
