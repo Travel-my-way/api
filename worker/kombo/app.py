@@ -7,6 +7,7 @@ import time
 from geopy.distance import distance
 
 from ..base import BaseWorker
+from worker.carbon import emission
 
 from .. import config as tmw_api_keys
 from .. import constants
@@ -335,7 +336,7 @@ def kombo_journey(df_response, passengers=1):
                 [leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]
             ).m
             local_transportation_type = switcher_category[leg.transportType]
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(local_transportation_type, local_distance_m)
             station_from = leg["name"]
             step = TMW.Journey_step(
                 i,

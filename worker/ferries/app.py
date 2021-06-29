@@ -11,6 +11,7 @@ from .. import TMW
 from .. import constants
 from .. import config as tmw_api_keys
 
+from worker.carbon import emission
 from worker.kombo import app as kombo
 from worker.ors import app as ors
 
@@ -146,7 +147,7 @@ def ferry_journey(journeys):
 
     for index, row in journeys.iterrows():
         distance_m = row.distance_m
-        local_emissions = 0
+        local_emissions = emission.calculate_co2_emissions(constants.TYPE_FERRY, distance_m)
         journey_steps = list()
         journey_step = TMW.Journey_step(
             0,

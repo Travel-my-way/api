@@ -7,6 +7,7 @@ import time
 from ..base import BaseWorker
 from .. import TMW
 from .. import constants
+from worker.carbon import emission
 
 
 # Get all plane journeys
@@ -102,7 +103,7 @@ def plane_journey(plane_trips):
         if row.nb_step == 1:
             # Direct Flights
             distance_m = row.distance_m
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
             journey_steps = list()
             journey_step = TMW.Journey_step(0,
                                             _type=constants.TYPE_PLANE,

@@ -7,6 +7,8 @@ from .. import constants
 from .. import config as tmw_api_keys
 from .. import TMW
 
+from worker.carbon import emission
+
 
 import openrouteservice
 from datetime import timedelta, datetime as dt
@@ -70,7 +72,7 @@ def ors_query_directions(
     # logger.info(ors_step)
 
     local_distance = ors_step["routes"][0]["summary"]["distance"]
-    local_emissions = 0
+    local_emissions = emission.calculate_co2_emissions(constants.TYPE_CAR, local_distance)
 
     formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
 
