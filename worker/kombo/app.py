@@ -297,6 +297,8 @@ def kombo_journey(df_response, passengers=1):
     # print(f'nb itinerary : {df_response.id_global.nunique()}')
     for tripId in df_response.tripId.unique():
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
+        # Make sure the legs of the trip are in the right order
+        itinerary = itinerary.sort_values(by='departureTime')
         # boolean to know whether and when there will be a transfer after the leg
         itinerary["next_departure"] = itinerary.departureTime.shift(-1)
         itinerary["next_stop_name"] = itinerary.name.shift(-1)
