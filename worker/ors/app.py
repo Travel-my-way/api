@@ -40,9 +40,7 @@ def ors_profile(profile):  # Should be integrated into CONSTANTS.py
     return dict_ors_profile[profile]
 
 
-def ors_query_directions(
-    query, profile="driving-car", toll_price=True, _id=0, geometry=False
-):
+def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, geometry=False, avoid_ferries= True):
     """
     start (class point)
     end (class point)
@@ -54,14 +52,17 @@ def ors_query_directions(
         query["start_point"][::-1],
         query["end_point"][::-1],
     ]  # WARNING it seems that [lon,lat] are not in the same order than for other API.
-
+    if avoid_ferries:
+        options = {"avoid_features": ["ferries"]}
+    else :
+        options = {}
     try:
         ors_step = ors_client.directions(
             coord,
             profile=profile,
             instructions=False,
             geometry=geometry,
-            options={"avoid_features": ["ferries"]},
+            options=options,
         )
     except Exception as e:
         logger.info("achtung brigitte !!!")
