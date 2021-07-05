@@ -136,7 +136,7 @@ def plane_journey(plane_trips):
 
         elif row.nb_step == 2:
             # Trip with transfert
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
             journey_steps = list()
             # first leg
             journey_step = TMW.Journey_step(0,
@@ -192,7 +192,7 @@ def plane_journey(plane_trips):
 def ultra_fake_plane_journey(geoloc_dep, geoloc_arr):
     journey_list = list()
     distance_m = distance(geoloc_dep, geoloc_arr).m
-    local_emissions = 0
+    local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
     journey_steps = list()
     journey_step = TMW.Journey_step(0,
                                     _type=constants.TYPE_PLANE,
