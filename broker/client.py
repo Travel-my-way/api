@@ -4,9 +4,11 @@ from kombu import Queue
 from kombu.mixins import ConsumerMixin
 from loguru import logger
 from redis import Redis
+from datetime import datetime as dt
 
 from . import Navitia
 from . import TMW
+from worker.ors import app as ors
 
 
 def recreate_journey_objects(results_list):
@@ -134,9 +136,9 @@ class Client(ConsumerMixin):
                 pass
             urban_queries.append(TMW.Query(0, geoloc_dep,
                                            interurban_journey.steps[0].departure_point,
-                                           params_json['start']))
+                                           dt.fromtimestamp(interurban_journey.steps[0].departure_date)))
             urban_queries.append(TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                           geoloc_arr, interurban_journey.steps[-1].arrival_date))
+                                           geoloc_arr, dt.fromtimestamp(interurban_journey.steps[-1].arrival_date)))
 
 
         # Deduplicate queries
@@ -146,21 +148,33 @@ class Client(ConsumerMixin):
         for urban_query in urban_queries:
             urban_journey = Navitia.navitia_query_directions(urban_query)
 
+            if urban_journey is None and urban_query.start_point != urban_query.end_point:
+                urban_journey = list()
+                urban_journey.append(ors.ors_query_directions(
+                    {
+                        "start_point": urban_query.start_point,
+                        "end_point": urban_query.end_point,
+                        "departure_date": urban_query.departure_date.strftime("%Y-%m-%d")
+                    },
+                    avoid_ferries=False
+                ))
             urban_journey_dict[str(urban_query.to_json())] = urban_journey
 
         for interurban_journey in journey_list:
             json_key_start = TMW.Query(0, geoloc_dep,
                                        interurban_journey.steps[0].departure_point,
-                                       params_json['start']).to_json()
+                                       dt.fromtimestamp(interurban_journey.steps[0].departure_date)).to_json()
             start_to_station_steps = urban_journey_dict[str(json_key_start)]
             json_key_end = TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                     geoloc_arr, interurban_journey.steps[-1].arrival_date).to_json()
+                                     geoloc_arr, dt.fromtimestamp(interurban_journey.steps[-1].arrival_date)).to_json()
             station_to_arrival_steps = urban_journey_dict[str(json_key_end)]
 
             if (start_to_station_steps is not None) & (station_to_arrival_steps is not None):
                 if (start_to_station_steps[0] is not None) & (station_to_arrival_steps[0] is not None):
-                    interurban_journey.add_steps(start_to_station_steps[0].steps, start_end=True)
-                    interurban_journey.add_steps(station_to_arrival_steps[0].steps, start_end=False)
+                    # interurban_journey.add_steps(start_to_station_steps[0].steps, start_end=True)
+                    # interurban_journey.add_steps(station_to_arrival_steps[0].steps, start_end=False)
+                    interurban_journey.add_journey_as_steps(start_to_station_steps[0], start_end=True)
+                    interurban_journey.add_journey_as_steps(station_to_arrival_steps[0], start_end=False)
 
             interurban_journey.update()
 
