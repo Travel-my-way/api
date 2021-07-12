@@ -41,6 +41,7 @@ def json_to_journey(json_journey):
                                           departure_date=int(step['departure_date']),
                                           arrival_date=int(step['arrival_date']),
                                           gCO2=float(step['gCO2']),
+                                          booking_link=step['booking_link'],
                                           # bike_friendly=step['bike_friendly'],
                                           )
                          )
@@ -129,20 +130,28 @@ class Client(ConsumerMixin):
             content[o["emitter"]] = o["result"]
 
         urban_queries = list()
+        urban_queries_json = list()
         logger.info(f'on a {len(journey_list)} journey')
         for interurban_journey in journey_list:
             if len(interurban_journey.steps[0].departure_point) == 1:
                 logger.warning('mauvais trip')
                 pass
-            urban_queries.append(TMW.Query(0, geoloc_dep,
-                                           interurban_journey.steps[0].departure_point,
-                                           dt.fromtimestamp(interurban_journey.steps[0].departure_date)))
-            urban_queries.append(TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                           geoloc_arr, dt.fromtimestamp(interurban_journey.steps[-1].arrival_date)))
+            query_dep = TMW.Query(0, geoloc_dep,
+                                  interurban_journey.steps[0].departure_point,
+                                  dt.strptime(params_json['start'], '%Y-%m-%d'))
+            if query_dep.to_json() not in urban_queries_json:
+                urban_queries.append(query_dep)
+                urban_queries_json.append(query_dep.to_json())
+            query_arr = TMW.Query(0, interurban_journey.steps[-1].arrival_point,
+                                  geoloc_arr, dt.strptime(params_json['start'], '%Y-%m-%d'))
 
+            if query_arr.to_json() not in urban_queries_json:
+                urban_queries.append(query_arr)
+                urban_queries_json.append(query_arr.to_json())
 
         # Deduplicate queries
         # urban_queries = list(set(urban_queries))
+        logger.info(f'on a {len(urban_queries)} urban queries')
 
         urban_journey_dict = dict()
         for urban_query in urban_queries:
@@ -163,10 +172,10 @@ class Client(ConsumerMixin):
         for interurban_journey in journey_list:
             json_key_start = TMW.Query(0, geoloc_dep,
                                        interurban_journey.steps[0].departure_point,
-                                       dt.fromtimestamp(interurban_journey.steps[0].departure_date)).to_json()
+                                       dt.strptime(params_json['start'], '%Y-%m-%d')).to_json()
             start_to_station_steps = urban_journey_dict[str(json_key_start)]
             json_key_end = TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                     geoloc_arr, dt.fromtimestamp(interurban_journey.steps[-1].arrival_date)).to_json()
+                                     geoloc_arr, dt.strptime(params_json['start'], '%Y-%m-%d')).to_json()
             station_to_arrival_steps = urban_journey_dict[str(json_key_end)]
 
             if (start_to_station_steps is not None) & (station_to_arrival_steps is not None):

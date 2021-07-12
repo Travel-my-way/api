@@ -69,6 +69,10 @@ class Journey:
             self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_COACH,
                                                              constants.TYPE_FERRY, constants.TYPE_CARPOOOLING, constants.TYPE_CAR],
                                              [step.type for step in self.steps]))))
+            if self.category == "":
+                self.category = list(set((filter(lambda x: x in [constants.TYPE_BUS, constants.TYPE_BIKE, constants.TYPE_METRO,
+                                                 constants.TYPE_TRAM],
+                                 [step.type for step in self.steps]))))
         return self
 
     def add_steps(self, steps_to_add, start_end=True):
@@ -92,11 +96,49 @@ class Journey:
             self.steps = self.steps + steps_to_add
             self.arrival_date = self.arrival_date + additionnal_duration
 
+    def add_journey_as_steps(self, journey_to_add, start_end=True):
+        # compute total duration of steps to update arrival and departure times
+        additionnal_duration = journey_to_add.total_duration
+        # create pseudo journey_step from journey
+
+        pseudo_step = Journey_step(0,
+                                   _type=journey_to_add.category,
+                                   label='',
+                                   distance_m=journey_to_add.total_distance,
+                                   duration_s=journey_to_add.total_duration,
+                                   price_EUR=[journey_to_add.total_price_EUR],
+                                   gCO2=journey_to_add.total_gCO2,
+                                   departure_point= journey_to_add.departure_point,
+                                   arrival_point= journey_to_add.arrival_point,
+                                   departure_stop_name= journey_to_add.steps[0].departure_stop_name,
+                                   arrival_stop_name= journey_to_add.steps[-1].arrival_stop_name,
+                                   departure_date= journey_to_add.steps[0].departure_date,
+                                   arrival_date= journey_to_add.steps[-1].arrival_date
+                                )
+        # if the steps are added at the beginning of the journey
+        if start_end:
+            pseudo_step.label = f'Tranport entre point de départ {journey_to_add.steps[0].departure_stop_name} ' \
+                                f'et {self.steps[0].departure_stop_name}'
+            # we update the ids of the steps to preserve the order of the whole journey
+            for step_old in self.steps:
+                step_old.id = step_old.id + 1
+            self.steps.insert(0, pseudo_step)
+            self.departure_date = self.departure_date - additionnal_duration
+        # if the steps are at the end of the journey
+        else :
+            pseudo_step.label = f'Tranport entre {self.steps[-1].arrival_stop_name} et' \
+                                f' arrivé au {journey_to_add.steps[-1].arrival_stop_name} '
+            nb_existing_steps = len(self.steps)
+            pseudo_step.id = nb_existing_steps
+            self.steps.append(pseudo_step)
+            self.arrival_date = self.arrival_date + additionnal_duration
+
 
 class Journey_step:
     def __init__(self, _id, _type, label='', distance_m=0, duration_s=0, price_EUR=[0.0], gCO2 = 0, departure_point=[0.0],
                  arrival_point=[0.0], departure_stop_name='', arrival_stop_name='', departure_date=dt.now()
-                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', trip_code='', geojson=''):
+                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', trip_code='',
+                 booking_link='', geojson=''):
         self.id = _id
         self.type = _type
         self.label = label
@@ -114,6 +156,7 @@ class Journey_step:
         self.bike_friendly = bike_friendly
         # Direction of metro / final stop on train ect..
         self.transportation_final_destination = transportation_final_destination
+        self.booking_link = booking_link
         self.geojson = geojson
 
     def to_json(self):
@@ -131,6 +174,7 @@ class Journey_step:
                 'arrival_date': int(self.arrival_date) or 0,
                 'trip_code': self.trip_code or '',
                 'gCO2': self.gCO2 or 0,
+                'booking_link': self.booking_link or '',
                 # 'geojson': self.geojson,
                 }
         return json

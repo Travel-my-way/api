@@ -217,7 +217,7 @@ def ultra_fake_plane_journey(geoloc_dep, geoloc_arr):
                           )
     journey.total_gCO2 = local_emissions
     journey.category = [constants.TYPE_PLANE]
-    journey.booking_link = ''
+    # journey.booking_link = ''
     journey.departure_point = geoloc_dep
     journey.arrival_point = geoloc_arr
     journey.update()

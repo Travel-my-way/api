@@ -137,7 +137,8 @@ class Journey:
 class Journey_step:
     def __init__(self, _id, _type, label='', distance_m=0, duration_s=0, price_EUR=[0.0], gCO2 = 0, departure_point=[0.0],
                  arrival_point=[0.0], departure_stop_name='', arrival_stop_name='', departure_date=dt.now()
-                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', trip_code='', geojson=''):
+                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', booking_link='',
+                 trip_code='', geojson=''):
         self.id = _id
         self.type = _type
         self.label = label
@@ -155,6 +156,7 @@ class Journey_step:
         self.bike_friendly = bike_friendly
         # Direction of metro / final stop on train ect..
         self.transportation_final_destination = transportation_final_destination
+        self.booking_link = booking_link
         self.geojson = geojson
 
     def to_json(self):
@@ -172,6 +174,7 @@ class Journey_step:
                 'arrival_date': int(self.arrival_date) or 0,
                 'trip_code': self.trip_code or '',
                 'gCO2': self.gCO2 or 0,
+                'booking_link': self.booking_link or '',
                 # 'geojson': self.geojson,
                 }
         return json

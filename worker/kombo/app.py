@@ -357,6 +357,7 @@ def kombo_journey(df_response, passengers=1):
                 trip_code="",
                 bike_friendly=False,
                 geojson=[],
+                booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
             )
             lst_sections.append(step)
             i = i + 1
@@ -388,7 +389,7 @@ def kombo_journey(df_response, passengers=1):
             steps=lst_sections,
             departure_date=lst_sections[0].departure_date,
             arrival_date=lst_sections[-1].arrival_date,
-            booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
+            # booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
         )
         journey_train.update()
         # Add category

@@ -204,6 +204,7 @@ def blablacar_journey(df_response):
                 arrival_date=leg.date_time_arrival.timestamp(),
                 trip_code="BlaBlaCar_" + str(leg.trip_id),
                 bike_friendly=False,
+                booking_link=leg.link,
                 geojson=[],
             )
             lst_sections.append(step)
@@ -236,7 +237,7 @@ def blablacar_journey(df_response):
             steps=lst_sections,
             departure_date=lst_sections[0].departure_date,
             arrival_date=lst_sections[-1].arrival_date,
-            booking_link=leg.link,
+            # booking_link=leg.link,
         )
         # Add category
         category_journey = list()
