@@ -42,9 +42,19 @@ class Journey:
                 'total_gCO2': self.total_gCO2 or 0,
                 'is_real_journey': self.is_real_journey or '',
                 'booking_link': self.booking_link or '',
-                'journey_steps': [step.to_json() for step in self.steps]
+                'journey_steps': self.jsonify_steps()
                 }
         return json
+
+    def jsonify_steps(self):
+        # to filter out steps we don't want to display in the front
+        tmp = list()
+        for step in self.steps:
+            if step.type not in [constants.TYPE_WAIT, constants.TYPE_TRANSFER]:
+                tmp.append(step.to_json())
+        return tmp
+        #return [step.to_json() for step in self.steps]
+
 
     def reset(self):
         self.score = 0
@@ -69,10 +79,9 @@ class Journey:
             self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_COACH,
                                                              constants.TYPE_FERRY, constants.TYPE_CARPOOOLING, constants.TYPE_CAR],
                                              [step.type for step in self.steps]))))
-            if self.category == "":
+            if self.category == list():
                 self.category = list(set((filter(lambda x: x in [constants.TYPE_BUS, constants.TYPE_BIKE, constants.TYPE_METRO,
-                                                 constants.TYPE_TRAM],
-                                 [step.type for step in self.steps]))))
+                                                 constants.TYPE_TRAM], [step.type for step in self.steps]))))
         return self
 
     def add_steps(self, steps_to_add, start_end=True):
@@ -97,12 +106,17 @@ class Journey:
             self.arrival_date = self.arrival_date + additionnal_duration
 
     def add_journey_as_steps(self, journey_to_add, start_end=True):
+        # This function is meant to be used only for intra_urban journey
         # compute total duration of steps to update arrival and departure times
         additionnal_duration = journey_to_add.total_duration
         # create pseudo journey_step from journey
-
+        if len(journey_to_add.category) > 0:
+            # we take the first category to randomly display only one
+            journey_step_type = journey_to_add.category[0]
+        else:
+            journey_step_type = constants.TYPE_WALK
         pseudo_step = Journey_step(0,
-                                   _type=journey_to_add.category,
+                                   _type=journey_step_type,
                                    label='',
                                    distance_m=journey_to_add.total_distance,
                                    duration_s=journey_to_add.total_duration,
@@ -137,8 +151,7 @@ class Journey:
 class Journey_step:
     def __init__(self, _id, _type, label='', distance_m=0, duration_s=0, price_EUR=[0.0], gCO2 = 0, departure_point=[0.0],
                  arrival_point=[0.0], departure_stop_name='', arrival_stop_name='', departure_date=dt.now()
-                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', booking_link='',
-                 trip_code='', geojson=''):
+                 , arrival_date=dt.now(), bike_friendly=False, transportation_final_destination='', booking_link='', trip_code='', geojson=''):
         self.id = _id
         self.type = _type
         self.label = label
