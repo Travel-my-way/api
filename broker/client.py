@@ -11,24 +11,26 @@ from . import TMW
 from worker.ors import app as ors
 
 
-def recreate_journey_objects(results_list):
+def recreate_journey_objects(results_list, id_journey=0):
     # # logger.info('into recreate_journey_objects')
     # # logger.info(results_list)
     journey_list = list()
     for result in results_list:
         # logger.info(result)
-        journey_list.append(json_to_journey(result))
+        journey_list.append(json_to_journey(result, id_journey))
+        id_journey += 1
 
-    return journey_list
+    return journey_list, id_journey
 
 
-def json_to_journey(json_journey):
+def json_to_journey(json_journey, id_journey):
     step_list = list()
     # logger.info('into json_to_journey')
     # logger.info(type(json_journey))
     # logger.info(json_journey)
+    id_journey_step = 0
     for step in json_journey['journey_steps']:
-        step_list.append(TMW.Journey_step(0,
+        step_list.append(TMW.Journey_step(id_journey_step,
                                           _type=step['type'],
                                           label=step['label'],
                                           distance_m=float(step['distance_m']),
@@ -45,7 +47,8 @@ def json_to_journey(json_journey):
                                           # bike_friendly=step['bike_friendly'],
                                           )
                          )
-    journey = TMW.Journey(0,
+        id_journey_step += 1
+    journey = TMW.Journey(id_journey,
                           steps=step_list,
                           departure_date=int(json_journey['departure_date']),
                           arrival_date=int(json_journey['arrival_date']),
@@ -117,9 +120,12 @@ class Client(ConsumerMixin):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
+        id_journey = 0
         for o in partials:
             try:
-                journey_list = journey_list + recreate_journey_objects(o["result"])
+                journey_to_add, id_journey = recreate_journey_objects(o["result"], id_journey)
+                journey_list = journey_list + journey_to_add
+                id_journey += 1
             except Exception as e:
                 logger.warning(f'recreate_journey_objects a foiré pour {o["emitter"]}')
                 logger.warning(e)
@@ -182,16 +188,16 @@ class Client(ConsumerMixin):
                 if (start_to_station_steps[0] is not None) & (station_to_arrival_steps[0] is not None):
                     # interurban_journey.add_steps(start_to_station_steps[0].steps, start_end=True)
                     # interurban_journey.add_steps(station_to_arrival_steps[0].steps, start_end=False)
+                    start_to_station_steps[0].update()
+                    station_to_arrival_steps[0].update()
                     interurban_journey.add_journey_as_steps(start_to_station_steps[0], start_end=True)
                     interurban_journey.add_journey_as_steps(station_to_arrival_steps[0], start_end=False)
 
             interurban_journey.update()
 
-        response = dict()
-        i = 0
+        response = list()
         for journey in journey_list:
-            # On peut avoir plusieurs category pour le meme journey
-            response[' + '.join(journey.category) + '_' + str(i)] = journey.to_json()
-            i = i + 1
+            #response[journey.id] = journey.to_json()
+            response.append(journey.to_json())
 
         return response
