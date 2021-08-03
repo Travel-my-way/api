@@ -11,6 +11,7 @@ from .. import TMW
 from .. import constants
 from .. import config as tmw_api_keys
 
+from worker.carbon import emission
 from worker.kombo import app as kombo
 from worker.ors import app as ors
 
@@ -146,7 +147,7 @@ def ferry_journey(journeys):
 
     for index, row in journeys.iterrows():
         distance_m = row.distance_m
-        local_emissions = 0
+        local_emissions = emission.calculate_co2_emissions(constants.TYPE_FERRY, distance_m)
         journey_steps = list()
         journey_step = TMW.Journey_step(
             0,
@@ -176,6 +177,7 @@ def ferry_journey(journeys):
             arrival_point=[row.lat_clean_arr, row.long_clean_arr],
             departure_date=int(row.date_dep.timestamp()),
             arrival_date=int(row.date_arr.timestamp()),
+            booking_link="https://www.ferrysavers.co.uk/ferry-routes.htm",
             geojson=[],
         )
 
@@ -189,7 +191,7 @@ def ferry_journey(journeys):
         )
         journey.total_gCO2 = local_emissions
         journey.category = [constants.TYPE_FERRY]
-        journey.booking_link = "https://www.ferrysavers.co.uk/ferry-routes.htm"
+        # journey.booking_link = "https://www.ferrysavers.co.uk/ferry-routes.htm"
         journey.departure_point = [row.lat_clean_dep, row.long_clean_dep]
         journey.arrival_point = [row.lat_clean_arr, row.long_clean_arr]
         journey.update()

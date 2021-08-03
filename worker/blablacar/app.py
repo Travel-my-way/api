@@ -8,6 +8,7 @@ from datetime import datetime as dt, timedelta
 from loguru import logger
 
 from ..base import BaseWorker
+from worker.carbon import emission
 
 from .. import constants
 from .. import TMW
@@ -186,7 +187,7 @@ def blablacar_journey(df_response):
         # Go through all steps of the journey
         for index, leg in itinerary.iterrows():
             local_distance_m = leg.distance_in_meters
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(constants.TYPE_CARPOOOLING, local_distance_m)
             step = TMW.Journey_step(
                 i,
                 _type=constants.TYPE_CARPOOOLING,
@@ -203,6 +204,7 @@ def blablacar_journey(df_response):
                 arrival_date=leg.date_time_arrival.timestamp(),
                 trip_code="BlaBlaCar_" + str(leg.trip_id),
                 bike_friendly=False,
+                booking_link=leg.link,
                 geojson=[],
             )
             lst_sections.append(step)
@@ -235,7 +237,7 @@ def blablacar_journey(df_response):
             steps=lst_sections,
             departure_date=lst_sections[0].departure_date,
             arrival_date=lst_sections[-1].arrival_date,
-            booking_link=leg.link,
+            # booking_link=leg.link,
         )
         # Add category
         category_journey = list()

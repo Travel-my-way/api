@@ -7,6 +7,7 @@ import time
 from ..base import BaseWorker
 from .. import TMW
 from .. import constants
+from worker.carbon import emission
 
 
 # Get all plane journeys
@@ -102,7 +103,7 @@ def plane_journey(plane_trips):
         if row.nb_step == 1:
             # Direct Flights
             distance_m = row.distance_m
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
             journey_steps = list()
             journey_step = TMW.Journey_step(0,
                                             _type=constants.TYPE_PLANE,
@@ -135,7 +136,7 @@ def plane_journey(plane_trips):
 
         elif row.nb_step == 2:
             # Trip with transfert
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
             journey_steps = list()
             # first leg
             journey_step = TMW.Journey_step(0,
@@ -191,7 +192,7 @@ def plane_journey(plane_trips):
 def ultra_fake_plane_journey(geoloc_dep, geoloc_arr):
     journey_list = list()
     distance_m = distance(geoloc_dep, geoloc_arr).m
-    local_emissions = 0
+    local_emissions = emission.calculate_co2_emissions(constants.TYPE_PLANE, distance_m)
     journey_steps = list()
     journey_step = TMW.Journey_step(0,
                                     _type=constants.TYPE_PLANE,
@@ -216,7 +217,7 @@ def ultra_fake_plane_journey(geoloc_dep, geoloc_arr):
                           )
     journey.total_gCO2 = local_emissions
     journey.category = [constants.TYPE_PLANE]
-    journey.booking_link = ''
+    # journey.booking_link = ''
     journey.departure_point = geoloc_dep
     journey.arrival_point = geoloc_arr
     journey.update()

@@ -89,8 +89,8 @@ logger.info(_NAVITIA_COV.head(1))
 
 def navitia_query_directions(query, _id=0):
     navitia_client = start_navitia_client()
-    start = query["start_point"]
-    end = query["end_point"]
+    start = query.start_point
+    end = query.end_point
     try:
         navitia_region = find_navita_coverage_for_points(start, end, _NAVITIA_COV)
     except:  # noqa E722
@@ -195,7 +195,9 @@ def navitia_journeys(json, _id=0):
                 logger.warning(e)
                 logger.warning(section)
             i = i + 1
-        lst_journeys.append(tmw.Journey(_id, steps=lst_sections))
+        navitia_journey = tmw.Journey(_id, steps=lst_sections)
+        navitia_journey.update()
+        lst_journeys.append(navitia_journey)
     return lst_journeys
 
 

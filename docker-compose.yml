@@ -118,3 +118,15 @@ services:
       - rabbitmq
     depends_on:
     - rabbitmq
+
+  planes:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    command: --name=planes
+    environment: *common-env
+    links:
+      - database
+      - rabbitmq
+    depends_on:
+    - rabbitmq

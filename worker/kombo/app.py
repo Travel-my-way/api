@@ -7,6 +7,7 @@ import time
 from geopy.distance import distance
 
 from ..base import BaseWorker
+from worker.carbon import emission
 
 from .. import config as tmw_api_keys
 from .. import constants
@@ -294,8 +295,11 @@ def kombo_journey(df_response, passengers=1):
     )
 
     # print(f'nb itinerary : {df_response.id_global.nunique()}')
+    id_journey = 0
     for tripId in df_response.tripId.unique():
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
+        # Make sure the legs of the trip are in the right order
+        itinerary = itinerary.sort_values(by='departureTime')
         # boolean to know whether and when there will be a transfer after the leg
         itinerary["next_departure"] = itinerary.departureTime.shift(-1)
         itinerary["next_stop_name"] = itinerary.name.shift(-1)
@@ -323,6 +327,8 @@ def kombo_journey(df_response, passengers=1):
                 ).timestamp()
             ),
             arrival_date=int(itinerary.departureTime[0].timestamp()),
+            departure_stop_name=itinerary.name.iloc[0],
+            arrival_stop_name=itinerary.name.iloc[0],
             bike_friendly=False,
             geojson=[],
         )
@@ -335,7 +341,7 @@ def kombo_journey(df_response, passengers=1):
                 [leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]
             ).m
             local_transportation_type = switcher_category[leg.transportType]
-            local_emissions = 0
+            local_emissions = emission.calculate_co2_emissions(local_transportation_type, local_distance_m)
             station_from = leg["name"]
             step = TMW.Journey_step(
                 i,
@@ -354,6 +360,7 @@ def kombo_journey(df_response, passengers=1):
                 trip_code="",
                 bike_friendly=False,
                 geojson=[],
+                booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
             )
             lst_sections.append(step)
             i = i + 1
@@ -381,11 +388,11 @@ def kombo_journey(df_response, passengers=1):
                 lst_sections.append(step)
                 i = i + 1
         journey_train = TMW.Journey(
-            0,
+            id_journey,
             steps=lst_sections,
             departure_date=lst_sections[0].departure_date,
             arrival_date=lst_sections[-1].arrival_date,
-            booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
+            # booking_link=f"www.kombo.co/affilate/1/fr/{passengers}/{leg.tripId}",
         )
         journey_train.update()
         # Add category
@@ -396,7 +403,7 @@ def kombo_journey(df_response, passengers=1):
 
         journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
-
+        id_journey += 1
         # for journey in lst_journeys:
         #    journey.update()
 
@@ -464,9 +471,29 @@ class KomboWorker(BaseWorker):
         kombo_journeys = compute_kombo_journey(all_cities, start)
 
         kombo_json = list()
-        limit = min(10, len(kombo_journeys))
-        for journey in kombo_journeys[0:limit]:
+        id_response = list()
+        limit_plane = 2
+        limit_train = 5
+        limit_coach = 5
+        train_journey = [journey for journey in kombo_journeys if constants.TYPE_TRAIN in journey.category]
+        coach_journey = [journey for journey in kombo_journeys if constants.TYPE_COACH in journey.category]
+        plane_journey = [journey for journey in kombo_journeys if constants.TYPE_PLANE in journey.category]
+        for journey in train_journey[0:limit_train]:
             kombo_json.append(journey.to_json())
+            id_response.append(journey.id)
+        i = 0
+        while (i < limit_coach) & (i < len(coach_journey)):
+            if coach_journey[i].id not in id_response:
+                kombo_json.append(journey.to_json())
+                id_response.append(journey.id)
+                i += 1
+        i = 0
+        while (i < limit_plane) & (i < len(plane_journey)):
+            if plane_journey[i].id not in id_response:
+                kombo_json.append(journey.to_json())
+                id_response.append(journey.id)
+                i += 1
+
         logger.info(
             f"we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}"
         )

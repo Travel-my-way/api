@@ -7,6 +7,8 @@ from .. import constants
 from .. import config as tmw_api_keys
 from .. import TMW
 
+from worker.carbon import emission
+
 
 import openrouteservice
 from datetime import timedelta, datetime as dt
@@ -38,9 +40,7 @@ def ors_profile(profile):  # Should be integrated into CONSTANTS.py
     return dict_ors_profile[profile]
 
 
-def ors_query_directions(
-    query, profile="driving-car", toll_price=True, _id=0, geometry=False
-):
+def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, geometry=False, avoid_ferries= True):
     """
     start (class point)
     end (class point)
@@ -52,14 +52,17 @@ def ors_query_directions(
         query["start_point"][::-1],
         query["end_point"][::-1],
     ]  # WARNING it seems that [lon,lat] are not in the same order than for other API.
-
+    if avoid_ferries:
+        options = {"avoid_features": ["ferries"]}
+    else :
+        options = {}
     try:
         ors_step = ors_client.directions(
             coord,
             profile=profile,
             instructions=False,
             geometry=geometry,
-            options={"avoid_features": ["ferries"]},
+            options=options,
         )
     except Exception as e:
         logger.info("achtung brigitte !!!")
@@ -70,7 +73,7 @@ def ors_query_directions(
     # logger.info(ors_step)
 
     local_distance = ors_step["routes"][0]["summary"]["distance"]
-    local_emissions = 0
+    local_emissions = emission.calculate_co2_emissions(constants.TYPE_CAR, local_distance)
 
     formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
 
