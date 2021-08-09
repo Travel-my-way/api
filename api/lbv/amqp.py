@@ -12,9 +12,11 @@ class RabbitMQ:
     config = None
     connection = None
     exchange = None
+    logger = None
 
     def init_app(self, app):
         self.config = app.config
+        self.logger = app.logger
         self.connection = Connection(self.config.get("RABMQ_RABBITMQ_URL"))
         self.exchange = Exchange(
             name=self.config.get("RABMQ_SEND_EXCHANGE_NAME"),
@@ -43,6 +45,7 @@ class RabbitMQ:
             reply_to=reply_to.name,
             correlation_id=correlation_id,
         )
+        self.logger.info(f"Request emitted to rabbitmq with corrID: {correlation_id}")
 
         return correlation_id
 
