@@ -12,7 +12,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.8.2
+          python-version: 3.8.11
           architecture: x64
       - name: Install flake8
         run: pip install flake8
