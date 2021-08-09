@@ -22,6 +22,9 @@ class RabbitMQ:
             auto_delete=False,
             durable=True,
         )
+        app.logger.info(
+            f"AMQP client started and connected to {self.config.get('RABMQ_RABBITMQ_URL')}"
+        )
 
     def send(self, body, routing_key):
         correlation_id = str(uuid.uuid4())

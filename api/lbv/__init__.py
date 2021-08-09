@@ -1,5 +1,5 @@
 from flask import Flask
-from loguru import logger
+import logging
 
 from .api import blueprint as api_blueprint
 from .tools import tools_bp
@@ -14,14 +14,13 @@ def create_app(env):
     # Load default config
     app.config.from_object(config[env])
 
-    # Log to loguru
-    logger.add(
-        app.config["LOGFILE"],
-        level=app.config["LOG_LEVEL"],
-        format="{time} {level} {message}",
-        backtrace=app.config["LOG_BACKTRACE"],
-    )
-    app.logger.addHandler(InterceptHandler())
+    # Use gunicorn logging if in production.
+    if env == "production":
+        gunicorn_logger = logging.getLogger("gunicorn.error")
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(gunicorn_logger.level)
+
+    app.logger.info(f"Running in {env} mode")
 
     # Init RabbitMQ
     from .amqp import ramq
@@ -30,6 +29,7 @@ def create_app(env):
 
     # Init Redis
     redis_client.init_app(app=app)
+    app.logger.info("Redis client started and connected to %s", app.config["REDIS_URL"])
 
     # API Blueprint
     app.register_blueprint(api_blueprint)
@@ -37,6 +37,5 @@ def create_app(env):
     # Technical routes
     app.register_blueprint(tools_bp, url_prefix="/tools")
 
-    app.logger.info("Running on %s", app.config["REDIS_URL"])
-
+    app.logger.info("Clients & blueprints loaded and started, let's roll!")
     return app
