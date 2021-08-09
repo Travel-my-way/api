@@ -26,4 +26,4 @@ is_dirty:
 tag: is_dirty
 	@echo "Current version: ${VERSION}"
 	@echo "Next version: ${NEXT_VERSION}"
-	git tag -a ${NEXT_VERSION} -m '${step} bump to v${NEXT_VERSION}'
+	git tag -a v${NEXT_VERSION} -m '${step} bump to v${NEXT_VERSION}'
