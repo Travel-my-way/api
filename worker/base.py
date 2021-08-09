@@ -2,6 +2,7 @@ from kombu import binding
 from kombu import Exchange
 from kombu import Queue
 from kombu.mixins import ConsumerProducerMixin
+from worker import log
 from loguru import logger
 
 
@@ -21,7 +22,7 @@ class BaseWorker(ConsumerProducerMixin):
             binding(exchange, routing_key="rq.#.{}".format(self.routing_key)),
         ]
 
-        logger.info(
+        log.info(
             "Listening on {} with keys {}/{}",
             connection,
             "rq.all",
@@ -38,10 +39,11 @@ class BaseWorker(ConsumerProducerMixin):
         ]
 
     def on_request(self, message):
-        with logger.contextualize(corrid=message.properties["correlation_id"]):
+        log.info(f"got request! {message}")
+        with log.contextualize(corrid=message.properties["correlation_id"]):
             result = self.execute(message)
 
-            logger.info("Replying results to api..")
+            log.info("Replying results to api..")
             self.producer.publish(
                 {"result": result, "emitter": self.routing_key},
                 exchange="",
@@ -51,7 +53,7 @@ class BaseWorker(ConsumerProducerMixin):
                 retry=True,
                 declare=[self.result_queue],
             )
-            logger.info("Successfully replied!")
+            log.info("Successfully replied!")
             message.ack()
 
     def execute(self, message):

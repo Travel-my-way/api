@@ -45,7 +45,9 @@ class RabbitMQ:
             reply_to=reply_to.name,
             correlation_id=correlation_id,
         )
-        self.logger.info(f"Request emitted to rabbitmq with corrID: {correlation_id}")
+        self.logger.info(
+            f"Request emitted to rabbitmq with corrID: {correlation_id} and key {routing_key}"
+        )
 
         return correlation_id
 
