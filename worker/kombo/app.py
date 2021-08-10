@@ -481,21 +481,21 @@ class KomboWorker(BaseWorker):
         for journey in train_journey[0:limit_train]:
             kombo_json.append(journey.to_json())
             id_response.append(journey.id)
-        i = 0
-        while (i < limit_coach) & (i < len(coach_journey)):
-            if coach_journey[i].id not in id_response:
+        nb_coach = 0
+        for journey in coach_journey:
+            if (journey.id not in id_response) & (nb_coach < limit_coach):
                 kombo_json.append(journey.to_json())
                 id_response.append(journey.id)
-                i += 1
-        i = 0
-        while (i < limit_plane) & (i < len(plane_journey)):
-            if plane_journey[i].id not in id_response:
+                nb_coach += 1
+        nb_plane = 0
+        for journey in plane_journey:
+            if (journey.id not in id_response) & (nb_plane < limit_plane):
                 kombo_json.append(journey.to_json())
                 id_response.append(journey.id)
-                i += 1
+                nb_plane += 1
 
         logger.info(
-            f"we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}"
+            f"we found {len(kombo_json)} kombo journey in {time.perf_counter()-time_start}"
         )
 
         return kombo_json
