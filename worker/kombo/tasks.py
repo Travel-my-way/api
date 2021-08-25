@@ -6,7 +6,8 @@ import copy
 import time
 from geopy.distance import distance
 
-from ..base import BaseWorker
+from . import app
+from worker import wrappers
 from worker.carbon import emission
 
 from .. import config as tmw_api_keys
@@ -69,7 +70,6 @@ def update_city_list():
 
     else:
         return None
-    # return pd.read_csv('worker/kombo/kombo_cities.csv')
 
 
 # Find the stops close to a geo point
@@ -299,7 +299,7 @@ def kombo_journey(df_response, passengers=1):
     for tripId in df_response.tripId.unique():
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
         # Make sure the legs of the trip are in the right order
-        itinerary = itinerary.sort_values(by='departureTime')
+        itinerary = itinerary.sort_values(by="departureTime")
         # boolean to know whether and when there will be a transfer after the leg
         itinerary["next_departure"] = itinerary.departureTime.shift(-1)
         itinerary["next_stop_name"] = itinerary.name.shift(-1)
@@ -341,7 +341,9 @@ def kombo_journey(df_response, passengers=1):
                 [leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]
             ).m
             local_transportation_type = switcher_category[leg.transportType]
-            local_emissions = emission.calculate_co2_emissions(local_transportation_type, local_distance_m)
+            local_emissions = emission.calculate_co2_emissions(
+                local_transportation_type, local_distance_m
+            )
             station_from = leg["name"]
             step = TMW.Journey_step(
                 i,
@@ -443,59 +445,65 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
     return kombo_journey(all_trips)
 
 
-class KomboWorker(BaseWorker):
+@app.task(name="worker", bind=True)
+@wrappers.catch()
+def worker(self, from_loc, to_loc, start_date):
+    time_start = time.perf_counter()
+    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
-    routing_key = "kombo"
+    geoloc_dep = from_loc.split(",")
+    geoloc_dep[0] = float(geoloc_dep[0])
+    geoloc_dep[1] = float(geoloc_dep[1])
+    geoloc_arr = to_loc.split(",")
+    geoloc_arr[0] = float(geoloc_arr[0])
+    geoloc_arr[1] = float(geoloc_arr[1])
 
-    def __init__(self, connection, exchange):
-        self.city_db = update_city_list()
-        super().__init__(connection, exchange)
+    start = start_date
 
-    def execute(self, message):
-        time_start = time.perf_counter()
-        logger.info("Got message: {}", message)
+    all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
+    if not all_cities:
+        return list()
 
-        geoloc_dep = message.payload["from"].split(",")
-        geoloc_dep[0] = float(geoloc_dep[0])
-        geoloc_dep[1] = float(geoloc_dep[1])
-        geoloc_arr = message.payload["to"].split(",")
-        geoloc_arr[0] = float(geoloc_arr[0])
-        geoloc_arr[1] = float(geoloc_arr[1])
+    kombo_journeys = compute_kombo_journey(all_cities, start)
 
-        start = message.payload["start"]
-
-        all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
-        if not all_cities:
-            return list()
-
-        kombo_journeys = compute_kombo_journey(all_cities, start)
-
-        kombo_json = list()
-        id_response = list()
-        limit_plane = 2
-        limit_train = 5
-        limit_coach = 5
-        train_journey = [journey for journey in kombo_journeys if constants.TYPE_TRAIN in journey.category]
-        coach_journey = [journey for journey in kombo_journeys if constants.TYPE_COACH in journey.category]
-        plane_journey = [journey for journey in kombo_journeys if constants.TYPE_PLANE in journey.category]
-        for journey in train_journey[0:limit_train]:
+    kombo_json = list()
+    id_response = list()
+    limit_plane = 2
+    limit_train = 5
+    limit_coach = 5
+    train_journey = [
+        journey
+        for journey in kombo_journeys
+        if constants.TYPE_TRAIN in journey.category
+    ]
+    coach_journey = [
+        journey
+        for journey in kombo_journeys
+        if constants.TYPE_COACH in journey.category
+    ]
+    plane_journey = [
+        journey
+        for journey in kombo_journeys
+        if constants.TYPE_PLANE in journey.category
+    ]
+    for journey in train_journey[0:limit_train]:
+        kombo_json.append(journey.to_json())
+        id_response.append(journey.id)
+    i = 0
+    while (i < limit_coach) & (i < len(coach_journey)):
+        if coach_journey[i].id not in id_response:
             kombo_json.append(journey.to_json())
             id_response.append(journey.id)
-        i = 0
-        while (i < limit_coach) & (i < len(coach_journey)):
-            if coach_journey[i].id not in id_response:
-                kombo_json.append(journey.to_json())
-                id_response.append(journey.id)
-                i += 1
-        i = 0
-        while (i < limit_plane) & (i < len(plane_journey)):
-            if plane_journey[i].id not in id_response:
-                kombo_json.append(journey.to_json())
-                id_response.append(journey.id)
-                i += 1
+            i += 1
+    i = 0
+    while (i < limit_plane) & (i < len(plane_journey)):
+        if plane_journey[i].id not in id_response:
+            kombo_json.append(journey.to_json())
+            id_response.append(journey.id)
+            i += 1
 
-        logger.info(
-            f"we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}"
-        )
+    logger.info(
+        f"we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}"
+    )
 
-        return kombo_json
+    return kombo_json

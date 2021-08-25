@@ -1,11 +1,6 @@
-import json
-
-from flask import current_app
+from flask import current_app, jsonify
 from flask_restful import reqparse
 from flask_restful import Resource
-
-from api.lbv.amqp import ramq
-from api.lbv.redis import redis_client
 
 
 # Args parser
@@ -20,11 +15,8 @@ class Journey(Resource):
         current_app.logger.info("POSTing request")
         args = parser.parse_args()
 
-        params = {"from": args["from"], "to": args["to"], "start": args["start"]}
-
-        req_id = ramq.send(body=params, routing_key="rq.all")
-
-        # Store details in redis.
-        redis_client.set("request_id:{} type:params".format(req_id), json.dumps(params))
-
-        return {"request_id": req_id}, 201
+        # Emit the request to workers then broker
+        r = current_app.extensions["celery"].send_tasks(
+            from_loc=args["from"], to_loc=args["to"], start_date=args["start"]
+        )
+        return {"uuid": r.id}, 201

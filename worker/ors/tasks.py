@@ -1,8 +1,6 @@
+from . import app
+from worker import wrappers, utils
 from loguru import logger
-import time
-
-from ..base import BaseWorker
-
 from .. import constants
 from .. import config as tmw_api_keys
 from .. import TMW
@@ -40,7 +38,14 @@ def ors_profile(profile):  # Should be integrated into CONSTANTS.py
     return dict_ors_profile[profile]
 
 
-def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, geometry=False, avoid_ferries= True):
+def ors_query_directions(
+    query,
+    profile="driving-car",
+    toll_price=True,
+    _id=0,
+    geometry=False,
+    avoid_ferries=True,
+):
     """
     start (class point)
     end (class point)
@@ -54,7 +59,7 @@ def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, g
     ]  # WARNING it seems that [lon,lat] are not in the same order than for other API.
     if avoid_ferries:
         options = {"avoid_features": ["ferries"]}
-    else :
+    else:
         options = {}
     try:
         ors_step = ors_client.directions(
@@ -65,15 +70,16 @@ def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, g
             options=options,
         )
     except Exception as e:
-        logger.info("achtung brigitte !!!")
-        logger.info(e)
+        logger.error(e)
         return None
 
     # geojson = convert.decode_polyline(ors_step['routes'][0]['geometry'])
     # logger.info(ors_step)
 
     local_distance = ors_step["routes"][0]["summary"]["distance"]
-    local_emissions = emission.calculate_co2_emissions(constants.TYPE_CAR, local_distance)
+    local_emissions = emission.calculate_co2_emissions(
+        constants.TYPE_CAR, local_distance
+    )
 
     formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
 
@@ -129,33 +135,25 @@ def ors_add_toll_price(step, toll_price_eur_per_km=0.025):
     return step
 
 
-class ORSWorker(BaseWorker):
+@app.task(name="worker", bind=True)
+@wrappers.catch(timing=True)
+def worker(self, from_loc, to_loc, start_date):
+    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
-    routing_key = "voiture"
+    (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
-    def execute(self, message):
-        time_start = time.perf_counter()
-        logger.info("Got message: {}", message)
-        geoloc_dep = message.payload["from"].split(",")
-        geoloc_dep[0] = float(geoloc_dep[0])
-        geoloc_dep[1] = float(geoloc_dep[1])
-        geoloc_arr = message.payload["to"].split(",")
-        geoloc_arr[0] = float(geoloc_arr[0])
-        geoloc_arr[1] = float(geoloc_arr[1])
+    query = {
+        "start_point": geoloc_dep,
+        "end_point": geoloc_arr,
+        "departure_date": start_date,
+    }
+    ors_journey = ors_query_directions(query)
 
-        query = {
-            "start_point": geoloc_dep,
-            "end_point": geoloc_arr,
-            "departure_date": message.payload["start"],
-        }
-        ors_journey = ors_query_directions(query)
+    if ors_journey:
+        response = list()
+        response.append(ors_journey.to_json())
+        return response
 
-        if ors_journey:
-            response = list()
-            response.append(ors_journey.to_json())
-            logger.info(f"reponse en en {time.perf_counter()-time_start}")
-            return response
-
-        else:
-            logger.info("No ORS journey found")
-            return list()
+    else:
+        logger.warning("No ORS journey found")
+        return []

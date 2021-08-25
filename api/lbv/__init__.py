@@ -6,6 +6,7 @@ from .tools import tools_bp
 from .config import config
 from .log import InterceptHandler
 from .redis import redis_client
+from .celery import Client as CeleryClient
 
 
 def create_app(env):
@@ -22,14 +23,10 @@ def create_app(env):
 
     app.logger.info(f"Running in {env} mode")
 
-    # Init RabbitMQ
-    from .amqp import ramq
-
-    ramq.init_app(app=app)
-
-    # Init Redis
-    redis_client.init_app(app=app)
-    app.logger.info("Redis client started and connected to %s", app.config["REDIS_URL"])
+    initialize_extensions(app=app)
+    # Init Celery
+    celery = CeleryClient()
+    celery.init_app(app=app)
 
     # API Blueprint
     app.register_blueprint(api_blueprint)
@@ -39,3 +36,7 @@ def create_app(env):
 
     app.logger.info("Clients & blueprints loaded and started, let's roll!")
     return app
+
+
+def initialize_extensions(app):
+    pass
