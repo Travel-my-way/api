@@ -1,4 +1,4 @@
-FROM python:3.8-slim as base
+FROM python:3.8-slim-buster as base
 
 # Setup env
 ENV LANG C.UTF-8
@@ -17,9 +17,14 @@ COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
 
-FROM python:3.8-slim AS runtime
+FROM python:3.8-slim-buster AS runtime
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
+
+# S6 overlay
+ADD https://github.com/just-containers/s6-overlay/releases/download/v1.21.8.0/s6-overlay-amd64.tar.gz /tmp/
+# hadolint ignore=DL4006
+RUN gunzip -c /tmp/s6-overlay-amd64.tar.gz | tar -xf - -C /
 
 # Reinstall numpy
 RUN python -m pip install numpy==1.20.3
@@ -28,9 +33,10 @@ RUN python -m pip install numpy==1.20.3
 # Create and switch to a new user
 RUN groupadd -r appgroup -g 901 && useradd -m -g appgroup -u 901 appuser
 WORKDIR /home/appuser
-USER appuser
 
-# Install application into container
+# Install application & startup script into container
+COPY ./docker/s6/celery-broker /etc/services.d/worker/run
+COPY ./worker /home/appuser/worker
 COPY ./broker /home/appuser/broker
 
-ENTRYPOINT ["python", "-m", "broker"]
+ENTRYPOINT ["/init"]

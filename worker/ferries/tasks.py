@@ -5,11 +5,11 @@ from datetime import datetime as dt, timedelta
 from geopy.distance import distance
 from loguru import logger
 import time
-
-from ..base import BaseWorker
 from .. import TMW
 from .. import constants
 from .. import config as tmw_api_keys
+from . import app
+from worker import wrappers, utils
 
 from worker.carbon import emission
 from worker.kombo import app as kombo
@@ -18,7 +18,11 @@ from worker.ors import app as ors
 
 # Get all ferry journeys
 def load_ferry_db():
-    ferry_db = pd.read_csv("worker/ferries/df_ferry_final_v1.csv")
+    ferry_db = pd.read_csv(
+        utils.get_relative_file_path(
+            base_path=__file__, filename="df_ferry_final_v1.csv"
+        )
+    )
     ferry_db["date_dep"] = pd.to_datetime(ferry_db["date_dep"])
     ferry_db["date_arr"] = pd.to_datetime(ferry_db["date_arr"])
     return ferry_db
@@ -26,7 +30,9 @@ def load_ferry_db():
 
 # Get all ferry routes
 def load_route_db():
-    route_db = pd.read_csv("worker/ferries/ferry_route_db.csv")
+    route_db = pd.read_csv(
+        utils.get_relative_file_path(base_path=__file__, filename="ferry_route_db.csv")
+    )
     return route_db
 
 
@@ -44,7 +50,6 @@ def update_city_list():
 
     else:
         return None
-    # return pd.read_csv('worker/ferries/kombo_cities.csv')
 
 
 def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes_db):
@@ -147,7 +152,9 @@ def ferry_journey(journeys):
 
     for index, row in journeys.iterrows():
         distance_m = row.distance_m
-        local_emissions = emission.calculate_co2_emissions(constants.TYPE_FERRY, distance_m)
+        local_emissions = emission.calculate_co2_emissions(
+            constants.TYPE_FERRY, distance_m
+        )
         journey_steps = list()
         journey_step = TMW.Journey_step(
             0,
@@ -200,124 +207,102 @@ def ferry_journey(journeys):
     return journey_list
 
 
-class FerryWorker(BaseWorker):
-    routing_key = "ferry"
+@app.task(name="worker", bind=True)
+@wrappers.catch(timing=True)
+def execute(self, from_loc, to_loc, start_date):
 
-    def __init__(self, connection, exchange):
-        self.ferry_database = load_ferry_db()
-        self.route_database = load_route_db()
-        self.city_db = update_city_list()
-        super().__init__(connection, exchange)
+    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
-    def execute(self, message):
-        # self.ouibus_database = update_stop_list()
-        time_start = time.perf_counter()
+    (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
-        logger.info("Got message: {}", message)
-        logger.info("len ferry_db: {}", len(self.ferry_database))
-        logger.info("len route_db: {}", len(self.route_database))
+    departure_date = dt.strptime(start_date, "%Y-%m-%d")
+    ferry_trips = get_ferries(
+        departure_date,
+        geoloc_dep,
+        geoloc_arr,
+        self.ferry_database,
+        self.route_database,
+    )
 
-        geoloc_dep = message.payload["from"].split(",")
-        geoloc_dep[0] = float(geoloc_dep[0])
-        geoloc_dep[1] = float(geoloc_dep[1])
-        geoloc_arr = message.payload["to"].split(",")
-        geoloc_arr[0] = float(geoloc_arr[0])
-        geoloc_arr[1] = float(geoloc_arr[1])
+    if ferry_trips is None:
+        ferry_journeys = list()
+    else:
+        ferry_journeys = ferry_journey(ferry_trips)
+        # pimp ferry journey with kombo calls
 
-        departure_date = dt.strptime(message.payload["start"], "%Y-%m-%d")
-        ferry_trips = get_ferries(
-            departure_date,
-            geoloc_dep,
-            geoloc_arr,
-            self.ferry_database,
-            self.route_database,
+        geoloc_port_dep = [
+            ferry_trips.lat_clean_dep.unique()[0],
+            ferry_trips.long_clean_dep.unique()[0],
+        ]
+        cities_port_dep = kombo.get_cities_from_geo_locs(
+            geoloc_dep, geoloc_port_dep, self.city_db, nb_different_city=1
+        )
+        geoloc_port_arr = [
+            ferry_trips.lat_clean_arr.unique()[0],
+            ferry_trips.long_clean_arr.unique()[0],
+        ]
+        cities_port_arr = kombo.get_cities_from_geo_locs(
+            geoloc_port_arr, geoloc_arr, self.city_db, nb_different_city=1
         )
 
-        if ferry_trips is None:
-            ferry_journeys = list()
-        else:
-            ferry_journeys = ferry_journey(ferry_trips)
-            # pimp ferry journey with kombo calls
-
-            geoloc_port_dep = [
-                ferry_trips.lat_clean_dep.unique()[0],
-                ferry_trips.long_clean_dep.unique()[0],
-            ]
-            cities_port_dep = kombo.get_cities_from_geo_locs(
-                geoloc_dep, geoloc_port_dep, self.city_db, nb_different_city=1
-            )
-            geoloc_port_arr = [
-                ferry_trips.lat_clean_arr.unique()[0],
-                ferry_trips.long_clean_arr.unique()[0],
-            ]
-            cities_port_arr = kombo.get_cities_from_geo_locs(
-                geoloc_port_arr, geoloc_arr, self.city_db, nb_different_city=1
-            )
-
-            kombo_dep = kombo.compute_kombo_journey(
-                cities_port_dep,
-                start=departure_date.strftime("%Y-%m-%d"),
-                fast_response=True,
-            )
-
-            kombo_arr = kombo.compute_kombo_journey(
-                cities_port_arr,
-                start=departure_date.strftime("%Y-%m-%d"),
-                fast_response=True,
-            )
-
-            additional_journeys = list()
-            for journey_ferry in ferry_journeys:
-                new_journey = copy.copy(journey_ferry)
-                train_found_dep = False
-                bus_found_dep = False
-                train_found_arr = False
-                bus_found_arr = False
-                if len(kombo_dep) > 0:
-                    for kombo_journey in kombo_dep:
-                        if (kombo_journey.category == [constants.TYPE_TRAIN]) & (
-                            not train_found_dep
-                        ):
-                            journey_ferry.add_steps(kombo_journey.steps, start_end=True)
-                            train_found_dep = True
-                        if (kombo_journey.category == [constants.TYPE_COACH]) & (
-                            not bus_found_dep
-                        ):
-                            new_journey.add_steps(kombo_journey.steps, start_end=True)
-                            bus_found_dep = True
-                    # else :
-                #     car_journey = ors.ors_query_directions()
-                if len(kombo_arr) > 0:
-                    for kombo_journey in kombo_arr:
-                        if (kombo_journey.category == [constants.TYPE_TRAIN]) & (
-                            not train_found_arr
-                        ):
-                            journey_ferry.add_steps(
-                                kombo_journey.steps, start_end=False
-                            )
-                            train_found_arr = True
-                        if (kombo_journey.category == [constants.TYPE_COACH]) & (
-                            not bus_found_arr
-                        ):
-                            new_journey.add_steps(kombo_journey.steps, start_end=False)
-                            bus_found_arr = True
-
-                if (bus_found_arr or bus_found_dep) & (
-                    train_found_arr or train_found_dep
-                ):
-                    additional_journeys.append(new_journey)
-                elif (bus_found_arr or bus_found_dep) & (
-                    not (train_found_arr or train_found_dep)
-                ):
-                    # if there is no train, we only
-                    journey_ferry = new_journey
-
-            ferry_journeys = ferry_journeys + additional_journeys
-
-        ferry_jsons = list()
-        for journey in ferry_journeys:
-            ferry_jsons.append(journey.to_json())
-        logger.info(
-            f"ici ferry on a envoyé {len(ferry_journeys)} journey en {time.perf_counter()-time_start}"
+        kombo_dep = kombo.compute_kombo_journey(
+            cities_port_dep,
+            start=departure_date.strftime("%Y-%m-%d"),
+            fast_response=True,
         )
-        return ferry_jsons
+
+        kombo_arr = kombo.compute_kombo_journey(
+            cities_port_arr,
+            start=departure_date.strftime("%Y-%m-%d"),
+            fast_response=True,
+        )
+
+        additional_journeys = list()
+        for journey_ferry in ferry_journeys:
+            new_journey = copy.copy(journey_ferry)
+            train_found_dep = False
+            bus_found_dep = False
+            train_found_arr = False
+            bus_found_arr = False
+            if len(kombo_dep) > 0:
+                for kombo_journey in kombo_dep:
+                    if (kombo_journey.category == [constants.TYPE_TRAIN]) & (
+                        not train_found_dep
+                    ):
+                        journey_ferry.add_steps(kombo_journey.steps, start_end=True)
+                        train_found_dep = True
+                    if (kombo_journey.category == [constants.TYPE_COACH]) & (
+                        not bus_found_dep
+                    ):
+                        new_journey.add_steps(kombo_journey.steps, start_end=True)
+                        bus_found_dep = True
+                # else :
+            #     car_journey = ors.ors_query_directions()
+            if len(kombo_arr) > 0:
+                for kombo_journey in kombo_arr:
+                    if (kombo_journey.category == [constants.TYPE_TRAIN]) & (
+                        not train_found_arr
+                    ):
+                        journey_ferry.add_steps(kombo_journey.steps, start_end=False)
+                        train_found_arr = True
+                    if (kombo_journey.category == [constants.TYPE_COACH]) & (
+                        not bus_found_arr
+                    ):
+                        new_journey.add_steps(kombo_journey.steps, start_end=False)
+                        bus_found_arr = True
+
+            if (bus_found_arr or bus_found_dep) & (train_found_arr or train_found_dep):
+                additional_journeys.append(new_journey)
+            elif (bus_found_arr or bus_found_dep) & (
+                not (train_found_arr or train_found_dep)
+            ):
+                # if there is no train, we only
+                journey_ferry = new_journey
+
+        ferry_journeys = ferry_journeys + additional_journeys
+
+    ferry_jsons = list()
+    for journey in ferry_journeys:
+        ferry_jsons.append(journey.to_json())
+    logger.info(f"ici ferry on a envoyé {len(ferry_journeys)} journey")
+    return ferry_jsons

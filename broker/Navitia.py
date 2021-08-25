@@ -84,7 +84,6 @@ def start_navitia_client():
 # ATTENTION: C'est quoi ce bout de code. Pas très propre... Doit être dans le main.py?
 navitia_client = start_navitia_client()
 _NAVITIA_COV = get_navitia_coverage(navitia_client)
-logger.info(_NAVITIA_COV.head(1))
 
 
 def navitia_query_directions(query, _id=0):

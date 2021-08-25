@@ -1,3 +1,6 @@
+from . import app
+from worker import wrappers
+
 import pandas as pd
 import requests
 import copy
@@ -7,7 +10,6 @@ from datetime import datetime as dt, timedelta
 
 from loguru import logger
 
-from ..base import BaseWorker
 from worker.carbon import emission
 
 from .. import constants
@@ -84,7 +86,7 @@ def search_for_trips(date, start_point, end_point):
     if response.status_code == 200:
         return format_blablacar_response(response.json(), date, start_point, end_point)
     else:
-        print(response.json())
+        logger.debug(response.json())
         return None
 
 
@@ -92,7 +94,7 @@ def search_for_trips(date, start_point, end_point):
 def format_blablacar_response(rep_json, departure_date, start_point, end_point):
     try:
         trips = pd.DataFrame.from_dict(rep_json["trips"])
-    except:
+    except:  # noqa:722
         logger.warning(
             f"Call to BlaBlaCar API gave no response for date {departure_date} from {start_point}"
             f" to {end_point}, json response was {rep_json}"
@@ -187,7 +189,9 @@ def blablacar_journey(df_response):
         # Go through all steps of the journey
         for index, leg in itinerary.iterrows():
             local_distance_m = leg.distance_in_meters
-            local_emissions = emission.calculate_co2_emissions(constants.TYPE_CARPOOOLING, local_distance_m)
+            local_emissions = emission.calculate_co2_emissions(
+                constants.TYPE_CARPOOOLING, local_distance_m
+            )
             step = TMW.Journey_step(
                 i,
                 _type=constants.TYPE_CARPOOOLING,
@@ -251,35 +255,32 @@ def blablacar_journey(df_response):
     return lst_journeys
 
 
-class BlaBlaCarWorker(BaseWorker):
+@app.task(name="worker", bind=True)
+@wrappers.catch()
+def worker(self, from_loc, to_loc, start_date):
+    time_start = time.perf_counter()
+    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
-    routing_key = "covoiturage"
+    geoloc_dep = from_loc.split(",")
+    geoloc_dep[0] = float(geoloc_dep[0])
+    geoloc_dep[1] = float(geoloc_dep[1])
+    geoloc_arr = to_loc.split(",")
+    geoloc_arr[0] = float(geoloc_arr[0])
+    geoloc_arr[1] = float(geoloc_arr[1])
 
-    def execute(self, message):
-        # self.ouibus_database = update_stop_list()
-        time_start = time.perf_counter()
-        logger.info("Got message: {}", message)
+    all_trips = search_for_trips(start_date, geoloc_dep, geoloc_arr)
 
-        geoloc_dep = message.payload["from"].split(",")
-        geoloc_dep[0] = float(geoloc_dep[0])
-        geoloc_dep[1] = float(geoloc_dep[1])
-        geoloc_arr = message.payload["to"].split(",")
-        geoloc_arr[0] = float(geoloc_arr[0])
-        geoloc_arr[1] = float(geoloc_arr[1])
+    if all_trips is None:
+        logger.warning("No trips found.")
+        return []
 
-        all_trips = search_for_trips(message.payload["start"], geoloc_dep, geoloc_arr)
+    blablacar_journeys = blablacar_journey(all_trips)
+    blablacar_json = list()
+    for journey in blablacar_journeys:
+        blablacar_json.append(journey.to_json())
 
-        # logger.info(f'len the trips {len(all_trips)}')
-        if all_trips is None:
-            return list()
+    logger.info(
+        f"{len(blablacar_journeys)} journey en {time.perf_counter() - time_start}"
+    )
 
-        blablacar_journeys = blablacar_journey(all_trips)
-        blablacar_json = list()
-        for journey in blablacar_journeys:
-            blablacar_json.append(journey.to_json())
-
-        logger.info(
-            f"{len(blablacar_journeys)} journey en {time.perf_counter()-time_start}"
-        )
-
-        return blablacar_json
+    return blablacar_json

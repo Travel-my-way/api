@@ -1,15 +1,16 @@
+import celery.states
 from flask import current_app
 from flask_restful import reqparse
 from flask_restful import Resource
 from loguru import logger
 
-from . import models
+from celery.result import AsyncResult
+
 from .exception import ApiException
 
 # RestFul parser
 parser = reqparse.RequestParser()
 parser.add_argument("request_id", type=str, required=True)
-parser.add_argument("partial", type=bool, default=False)
 
 
 # API endpoint
@@ -18,15 +19,19 @@ class Results(Resource):
         current_app.logger.info("GETting results")
         args = parser.parse_args()
 
-        if args["partial"] is True:
-            logger.info("Returning partial results")
-            results = models.PartialResults(request_id=args["request_id"])
-        else:
-            logger.info("Returning final results")
-            results = models.FinalResults(request_id=args["request_id"])
-
         try:
-            content = results.fetch()
-            return content, 202
-        except ApiException as ae:
-            return {"error": ae.message}, 410
+            task_result = AsyncResult(id=args["request_id"])
+            if task_result.successful():
+                # Everything is OK, return the result
+                return task_result.result, 200
+            elif task_result.status == celery.states.FAILURE:
+                return {"error": task_result.result}, 500
+            else:
+                # Task still running,please come back later
+                return {}, 204
+        except TimeoutError:
+            # Task (with all workers) took too much time.
+            return (
+                {"error": "Journey took too much time to calculate, it was timeouted"},
+                410,
+            )

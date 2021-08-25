@@ -1,0 +1,3 @@
+#!/usr/bin/with-contenv sh
+export PYTHONPATH=${PYTHONPATH}:/home/appuser
+/.venv/bin/python -m celery -A broker worker --uid=appuser --hostname=broker@%h -l INFO
