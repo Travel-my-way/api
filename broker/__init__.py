@@ -4,6 +4,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
+from .celery import make_app
+
 # Load .env from parent directory
 env_path = Path("..") / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -18,3 +20,5 @@ log_format = (
 logger.remove()  # Remove all known handlers
 logger.add(sys.stdout, format=log_format)
 log = logger.bind(corrid="n/a")
+
+app = make_app(name="broker")
