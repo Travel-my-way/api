@@ -5,7 +5,6 @@ from .api import blueprint as api_blueprint
 from .tools import tools_bp
 from .config import config
 from .log import InterceptHandler
-from .redis import redis_client
 from .celery import Client as CeleryClient
 
 

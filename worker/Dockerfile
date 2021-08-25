@@ -1,4 +1,4 @@
-FROM python:3.8-slim as base
+FROM python:3.8-slim-buster as base
 
 # Setup env
 ENV LANG C.UTF-8
@@ -21,12 +21,17 @@ FROM base AS runtime
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
 
+# S6 overlay
+ADD https://github.com/just-containers/s6-overlay/releases/download/v1.21.8.0/s6-overlay-amd64.tar.gz /tmp/
+# hadolint ignore=DL4006
+RUN gunzip -c /tmp/s6-overlay-amd64.tar.gz | tar -xf - -C /
+
 # Create and switch to a new user
 RUN addgroup --gid 2000 appgroup && adduser --home /home/appuser --gid 2000 appuser
 WORKDIR /home/appuser
-USER appuser
 
-# Install application into container
+# Install application & startup script into container
+COPY ./docker/s6/celery-worker /etc/services.d/worker/run
 COPY ./worker /home/appuser/worker
 
-ENTRYPOINT ["python", "-m", "worker"]
+ENTRYPOINT ["/init"]

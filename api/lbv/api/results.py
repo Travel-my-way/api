@@ -6,7 +6,6 @@ from loguru import logger
 
 from celery.result import AsyncResult
 
-from . import models
 from .exception import ApiException
 
 # RestFul parser

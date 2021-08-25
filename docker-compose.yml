@@ -1,4 +1,10 @@
-version: "3.6"
+version: "3.8"
+
+# Common config
+x-config:
+  &default-config
+  CELERY_BROKER_URL: amqp://user:bitnami@rabbitmq:5672/
+  CELERY_RESULT_BACKEND: redis://redis:6379
 
 volumes:
   pgdata:
@@ -8,22 +14,20 @@ services:
     build:
       context: .
       dockerfile: ./api/Dockerfile
-    environment: &common-env
-      - FLASK_APP=api.lbv:create_app('docker-compose')
-      - RABMQ_RABBITMQ_URL=amqp://user:bitnami@rabbitmq:5672/
-      - RABMQ_SEND_EXCHANGE_NAME=tmw
-      - RABMQ_SEND_EXCHANGE_TYPE=topic
-      - REDIS_URL=redis://redis:6379
+    environment:
+      << : *default-config
+      FLASK_APP: api.lbv:create_app('docker-compose')
+      WORKERS: blablacar,planes,kombo,ors
     ports:
-      - "5000:5000"
+      - "8080:80"
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
     restart: always
     environment:
-      - POSTGRES_PASSWORD=pg_password
-      - POSTGRES_USER=bonvoyage_usr
-      - POSTGRES_DB=bonvoyage
+      POSTGRES_PASSWORD: pg_password
+      POSTGRES_USER: bonvoyage_usr
+      POSTGRES_DB: bonvoyage
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -32,7 +36,7 @@ services:
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
     environment:
-      - RABBITMQ_PLUGINS=rabbitmq_management
+      RABBITMQ_PLUGINS: rabbitmq_management
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -40,107 +44,61 @@ services:
   redis:
     image: 'bitnami/redis:latest'
     environment:
-      - ALLOW_EMPTY_PASSWORD=yes
+      ALLOW_EMPTY_PASSWORD: 'yes'
     ports:
       - "6379:6379"
-
-  redisinsight:
-    image: 'redislabs/redisinsight:latest'
-    ports:
-    - "8001:8001"
-    links:
-      - redis
 
   flower:
     image: 'mher/flower'
     ports:
       - "5555:5555"
     environment:
-      - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq:5672/
-      - FLOWER_BROKER_API=http://user:bitnami@rabbitmq:15672/api/
-    links:
-      - redis
-      - rabbitmq
+      << : *default-config
+      FLOWER_PURGE_OFFLINE_WORKERS: 1
+      FLOWER_BROKER_API: http://user:bitnami@rabbitmq:15672/api/
 
   broker:
-    build:
-      context: .
-      dockerfile: ./broker/Dockerfile
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
-    depends_on:
-      - rabbitmq
-
-  ouibus:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=ouibus
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
+    image: 'localhost:32000/broker'
+    hostname: broker.docker.local
+    environment:
+      << : *default-config
+      NAVITIA_API_KEY: ${NAVITIA_API_KEY}
+      ORS_API_KEY: ${ORS_API_KEY}
     depends_on:
       - rabbitmq
 
   blablacar:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=blablacar
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: blablacar
+      BLABLACAR_API_KEY: ${BLABLACAR_API_KEY}
     depends_on:
-    - rabbitmq
-
-  ors:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=ors
-    environment: *common-env
-    links:
-      - database
       - rabbitmq
-    depends_on:
-    - rabbitmq
-
-  ferries:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=ferries
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
-    depends_on:
-    - rabbitmq
-
-  kombo:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=kombo
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
-    depends_on:
-    - rabbitmq
-
   planes:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    command: --name=planes
-    environment: *common-env
-    links:
-      - database
-      - rabbitmq
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: planes
     depends_on:
-    - rabbitmq
+      - rabbitmq
+  kombo:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: kombo
+      KOMBO_API_KEY: ${KOMBO_API_KEY}
+    depends_on:
+      - rabbitmq
+  ors:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: ors
+      ORS_API_KEY: ${ORS_API_KEY}
+    depends_on:
+      - rabbitmq
