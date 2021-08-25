@@ -473,22 +473,14 @@ def worker(self, from_loc, to_loc, start_date):
     id_response = list()
 
     limit_train = 5
+    limit_plane = 2
+    limit_coach = 5
 
     train_journey = [
         journey
         for journey in kombo_journeys
         if constants.TYPE_TRAIN in journey.category
     ]
-
-    for journey in train_journey[0:limit_train]:
-        kombo_json.append(journey.to_json())
-        id_response.append(journey.id)
-
-    # Commented code as journey variable is not initialized ?!?
-    """
-    limit_plane = 2
-    limit_coach = 5
-
     coach_journey = [
         journey
         for journey in kombo_journeys
@@ -500,21 +492,23 @@ def worker(self, from_loc, to_loc, start_date):
         if constants.TYPE_PLANE in journey.category
     ]
 
-    while (i < limit_coach) & (i < len(coach_journey)):
-        if coach_journey[i].id not in id_response:
-            kombo_json.append(journey.to_json())
-            id_response.append(journey.id)
-            i += 1
-    i = 0
-    logger.debug("coach loop")
-    while (i < limit_plane) & (i < len(plane_journey)):
-        if plane_journey[i].id not in id_response:
-            kombo_json.append(journey.to_json())
-            id_response.append(journey.id)
-            i += 1
-    logger.debug("plane loop")
-    """
+    for journey in train_journey[0:limit_train]:
+        kombo_json.append(journey.to_json())
+        id_response.append(journey.id)
 
-    logger.info(f"Got {len(kombo_journeys)} journeys from kombo")
+    nb_coach = 0
+    for journey in coach_journey:
+        if (journey.id not in id_response) & (nb_coach < limit_coach):
+            kombo_json.append(journey.to_json())
+            id_response.append(journey.id)
+            nb_coach += 1
+    nb_plane = 0
+    for journey in plane_journey:
+        if (journey.id not in id_response) & (nb_plane < limit_plane):
+            kombo_json.append(journey.to_json())
+            id_response.append(journey.id)
+            nb_plane += 1
+
+    logger.info("Got {} kombo journeys", len(kombo_json))
 
     return kombo_json
