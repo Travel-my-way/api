@@ -7,7 +7,7 @@ import time
 from geopy.distance import distance
 
 from . import app
-from worker import wrappers
+from worker import wrappers, utils
 from worker.carbon import emission
 
 from .. import config as tmw_api_keys
@@ -207,14 +207,14 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
     logger.info(
         f"https://turing.kombo.co/search/{id_dep}/{id_arr}/{date}/{nb_passengers}"
     )
-    if r.status_code == 200:
+    if r.ok:
         pollkey = r.json()["key"]
-        # print('paul k ok')
     else:
         logger.warning(f"error in search {r.status_code}")
         return pd.DataFrame()
     time.sleep(0.5)
     try:
+        logger.info("Polling kombo results...")
         response = requests.get(
             f"https://turing.kombo.co/pollSearch/{pollkey}", headers=headers
         )
@@ -223,8 +223,7 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
         companies = dataframize(response.json()["dependencies"]["companies"])
         keep_looking = not (response.json()["completed"])
     except Exception as e:
-        logger.warning("error in kombo response")
-        logger.warning(e)
+        logger.warning("error in kombo response: {}", e)
         return pd.DataFrame()
 
     if response_ready(fast_response, trips, companies):
@@ -247,6 +246,7 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
     if len(trips) == 0:
         logger.info("trips est vide")
         return pd.DataFrame()
+    logger.info("Got {} trips from kombo", len(trips))
     stations = stations.drop_duplicates()
     companies = companies.drop_duplicates()
     trips_clean = enrich_trips(trips, stations, companies)
@@ -254,6 +254,7 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
 
 
 def kombo_journey(df_response, passengers=1):
+    logger.info("Entering journey details")
     """
     This function takes in a DF with detailled info about all the Kombo trips
     It returns a list of TMW journey objects
@@ -337,6 +338,7 @@ def kombo_journey(df_response, passengers=1):
         i = i + 1
         # Go through all steps of the journey
         for index, leg in itinerary.iterrows():
+            logger.info("Journey step from {} to {}", leg["name"], leg.name_arr)
             local_distance_m = distance(
                 [leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]
             ).m
@@ -368,6 +370,7 @@ def kombo_journey(df_response, passengers=1):
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
+                logger.info("Calculating next step")
                 step = TMW.Journey_step(
                     i,
                     _type=constants.TYPE_TRANSFER,
@@ -389,6 +392,7 @@ def kombo_journey(df_response, passengers=1):
                 )
                 lst_sections.append(step)
                 i = i + 1
+        logger.info("Calulating train journeys")
         journey_train = TMW.Journey(
             id_journey,
             steps=lst_sections,
@@ -406,13 +410,14 @@ def kombo_journey(df_response, passengers=1):
         journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
         id_journey += 1
-        # for journey in lst_journeys:
-        #    journey.update()
+
+        logger.info("Got {} journeys from search", len(lst_journeys))
 
     return lst_journeys
 
 
 def compute_kombo_journey(all_cities, start, fast_response=False):
+    logger.info("Computing journeys")
     all_trips = pd.DataFrame()
 
     found_train = False
@@ -446,36 +451,44 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
 
 
 @app.task(name="worker", bind=True)
-@wrappers.catch()
+@wrappers.catch(timing=True)
 def worker(self, from_loc, to_loc, start_date):
-    time_start = time.perf_counter()
     logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
-    geoloc_dep = from_loc.split(",")
-    geoloc_dep[0] = float(geoloc_dep[0])
-    geoloc_dep[1] = float(geoloc_dep[1])
-    geoloc_arr = to_loc.split(",")
-    geoloc_arr[0] = float(geoloc_arr[0])
-    geoloc_arr[1] = float(geoloc_arr[1])
+    # Import global values
+    from . import city_db
 
-    start = start_date
+    (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
-    all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
+    # Get cities aroung geolocation
+    logger.info("Getting geoloc")
+    all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, city_db)
     if not all_cities:
         return list()
 
-    kombo_journeys = compute_kombo_journey(all_cities, start)
+    kombo_journeys = compute_kombo_journey(all_cities, start_date)
+    logger.info("Got all journeys...")
 
     kombo_json = list()
     id_response = list()
-    limit_plane = 2
+
     limit_train = 5
-    limit_coach = 5
+
     train_journey = [
         journey
         for journey in kombo_journeys
         if constants.TYPE_TRAIN in journey.category
     ]
+
+    for journey in train_journey[0:limit_train]:
+        kombo_json.append(journey.to_json())
+        id_response.append(journey.id)
+
+    # Commented code as journey variable is not initialized ?!?
+    """
+    limit_plane = 2
+    limit_coach = 5
+
     coach_journey = [
         journey
         for journey in kombo_journeys
@@ -486,24 +499,22 @@ def worker(self, from_loc, to_loc, start_date):
         for journey in kombo_journeys
         if constants.TYPE_PLANE in journey.category
     ]
-    for journey in train_journey[0:limit_train]:
-        kombo_json.append(journey.to_json())
-        id_response.append(journey.id)
-    i = 0
+
     while (i < limit_coach) & (i < len(coach_journey)):
         if coach_journey[i].id not in id_response:
             kombo_json.append(journey.to_json())
             id_response.append(journey.id)
             i += 1
     i = 0
+    logger.debug("coach loop")
     while (i < limit_plane) & (i < len(plane_journey)):
         if plane_journey[i].id not in id_response:
             kombo_json.append(journey.to_json())
             id_response.append(journey.id)
             i += 1
+    logger.debug("plane loop")
+    """
 
-    logger.info(
-        f"we found {len(kombo_journeys)} kombo journey in {time.perf_counter()-time_start}"
-    )
+    logger.info(f"Got {len(kombo_journeys)} journeys from kombo")
 
     return kombo_json
