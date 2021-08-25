@@ -5,7 +5,7 @@ from . import app
 from broker import wrappers
 from . import Navitia
 from . import TMW
-from worker.ors import app as ors
+from worker.ors.tasks import ors_query_directions
 
 
 def recreate_journey_objects(results_list, id_journey=0):
@@ -133,7 +133,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) 
         if urban_journey is None and urban_query.start_point != urban_query.end_point:
             urban_journey = list()
             urban_journey.append(
-                ors.ors_query_directions(
+                ors_query_directions(
                     {
                         "start_point": urban_query.start_point,
                         "end_point": urban_query.end_point,

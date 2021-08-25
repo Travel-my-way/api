@@ -9,7 +9,8 @@ class Config(object):
     LOGFILE = sys.stderr
 
     # Available workers
-    WORKERS = ["blablacar", "planes", "kombo"]
+    worker_env = os.getenv("WORKERS", "fake")
+    WORKERS = worker_env.split(",")
 
     # Celery config
     broker_url = os.getenv("CELERY_BROKER_URL")
@@ -23,7 +24,6 @@ class DockerComposeConfig(Config):
     DEBUG = True
     LOG_BACKTRACE = True
     LOG_LEVEL = "DEBUG"
-    REDIS_URL = "redis://redis:6379"
 
 
 class DevelopmentConfig(Config):

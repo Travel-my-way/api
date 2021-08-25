@@ -302,10 +302,10 @@ def worker(self, from_loc, to_loc, start_date):
     # departure_date = dt.strptime(start_date, "%Y-%m-%d")
 
     airports = get_cities_from_geo_locs(
-        geoloc_dep, geoloc_arr, self.airport_database, nb_different_city=2
+        geoloc_dep, geoloc_arr, airport_database, nb_different_city=2
     )
 
-    plane_trips = compute_plane_journey(airports, self.plane_database)
+    plane_trips = compute_plane_journey(airports, plane_database)
 
     if plane_trips is not None:
         plane_journeys = plane_journey(plane_trips)
@@ -318,3 +318,8 @@ def worker(self, from_loc, to_loc, start_date):
     logger.info(f"ici planes on a envoyé {len(plane_journeys)} journey")
 
     return plane_jsons
+
+
+# Global values
+airport_database = load_airport_db()
+plane_database = load_plane_db()
