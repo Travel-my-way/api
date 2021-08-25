@@ -31,8 +31,11 @@ services:
 
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
+    environment:
+      - RABBITMQ_PLUGINS=rabbitmq_management
     ports:
       - "5672:5672"
+      - "15672:15672"
 
   redis:
     image: 'bitnami/redis:latest'
@@ -47,6 +50,17 @@ services:
     - "8001:8001"
     links:
       - redis
+
+  flower:
+    image: 'mher/flower'
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq:5672/
+      - FLOWER_BROKER_API=http://user:bitnami@rabbitmq:15672/api/
+    links:
+      - redis
+      - rabbitmq
 
   broker:
     build:

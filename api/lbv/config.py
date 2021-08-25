@@ -9,7 +9,7 @@ class Config(object):
     LOGFILE = sys.stderr
 
     # Available workers
-    WORKERS = ["blablacar", "ors", "kombo"]
+    WORKERS = ["blablacar", "planes", "kombo"]
 
     # Celery config
     broker_url = os.getenv("CELERY_BROKER_URL")
