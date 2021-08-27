@@ -9,7 +9,7 @@ from worker.carbon import emission
 
 
 import openrouteservice
-from datetime import timedelta, datetime as dt
+from datetime import datetime as dt
 
 """
 OPEN ROUTE SERVICES FUNCTIONS

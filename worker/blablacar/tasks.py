@@ -256,7 +256,7 @@ def blablacar_journey(df_response):
 
 
 @app.task(name="worker", bind=True)
-@wrappers.catch()
+@wrappers.catch(timing=True)
 def worker(self, from_loc, to_loc, start_date):
     time_start = time.perf_counter()
     logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
