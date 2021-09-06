@@ -1,11 +1,7 @@
-name: Docker publishing
+name: Publishing
 
 on:
   push:
-    # Publish `master` as Docker `latest` image.
-    branches:
-      - master
-
     # Publish `v1.2.3` tags as releases.
     tags:
       - v*
@@ -14,18 +10,6 @@ on:
   pull_request:
 
 jobs:
-  # Run tests.
-  # See also https://docs.docker.com/docker-hub/builds/automated-testing/
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Run tests
-        run: |
-          echo "There should be tests !"
-
   # Push image to GitHub Packages.
   # See also https://docs.docker.com/docker-hub/builds/
   build:
