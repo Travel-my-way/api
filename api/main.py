@@ -1,21 +1,27 @@
 from fastapi import FastAPI
-from . import models
+from .bv import logging as bv_logging
+from .bv.settings import Settings
+from api.bv.routers import journey
+import logging
+from pathlib import Path
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
 
-
-@app.post("/journey")
-def post_journey(journey: models.JourneyIn):
-    if journey.is_valid():
-        journey.submit()
-        return {"journey_id": 123456}
-    else:
-        return {"status": "error"}
+config_path=Path(__file__).with_name("logging_config.json")
 
 
-@app.get("/journey/{journey_uuid}")
-def get_journey(uuid: str):
-    return {"status": "success", "journey_uuid": uuid}
+def create_app() -> FastAPI:
+    app = FastAPI()
+
+    app.settings = Settings()
+    app.include_router(journey.router)
+    logger = bv_logging.CustomizeLogger.make_logger(config_path)
+    app.logger = logger
+
+    return app
+
+
+app = create_app()
 
 
 @app.get("/tools/healthz")
