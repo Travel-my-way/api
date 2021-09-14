@@ -1,7 +1,11 @@
-name: Publishing
+name: Docker publishing
 
 on:
   push:
+    # Publish `master` as Docker `latest` image.
+    branches:
+      - master
+
     # Publish `v1.2.3` tags as releases.
     tags:
       - v*
@@ -10,8 +14,23 @@ on:
   pull_request:
 
 jobs:
+  # Run tests.
+  # See also https://docs.docker.com/docker-hub/builds/automated-testing/
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run tests
+        run: |
+          echo "There should be tests !"
+
   # Push image to GitHub Packages.
+  # See also https://docs.docker.com/docker-hub/builds/
   build:
+    # Ensure test job passes before pushing image.
+    needs: test
 
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
@@ -49,7 +68,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           image: bonvoyage-${{ matrix.component }}
           tag: ${{ env.image_version }}
-          tag_with_latest: true
           cache: true
           cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
