@@ -1,17 +1,14 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from api.bv import models
+from api.bv.celery import celery_app
 
 router = APIRouter()
 
 
 @router.post("/journey", tags=["journey"])
-def post_journey(request: Request, journey: models.JourneyIn):
-    if journey.is_valid():
-        request.app.logger.info("valid journey, sending tasks")
-        uuid = journey.submit()
-        return {"journey_id": uuid}
-    else:
-        return {"status": "error"}
+def post_journey(journey: models.Journey):
+    r = celery_app.publish_journey(journey=journey)
+    return {"journey_id": r.id}
 
 
 @router.get("/journey/{uuid}", tags=["journey"])
