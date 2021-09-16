@@ -1,3 +1,4 @@
 .env
 *.log
 worker/OuiBus/app.py
+/api/sys.stdout
