@@ -1,6 +1,5 @@
-from datetime import date
-
-from celery import Celery, signature, chord
+from fastapi import Request, Depends
+from celery import Celery, signature, chord, states
 from celery.result import AsyncResult
 
 from api.bv.models import Journey
@@ -10,11 +9,11 @@ from api.bv.settings import Settings
 class Client(Celery):
     workers = []
 
-    def __init__(self, settings: Settings, config_prefix="CELERY"):
+    def __init__(self, config_prefix="CELERY"):
         self.config_prefix = config_prefix
         super(Client, self).__init__("bonvoyage")
 
-        self.init_app(settings=settings)
+        self.init_app(settings=Settings())
 
     def init_app(self, settings: Settings):
         self.config_from_object(settings)
@@ -22,36 +21,44 @@ class Client(Celery):
         # List of workers
         self.workers = settings.workers
 
-    def publish_journey(self, journey: Journey):
-        print(f"From: {journey.origin}, TO: {journey.destination}")
-        return self.send_tasks(
-            from_loc=journey.origin,
-            to_loc=journey.destination,
-            start_date=journey.start.strftime("%Y-%m-%d")
-        )
+    def publish_journey(self, journey: Journey) -> AsyncResult:
+        print(f"Emitting: {journey} to {self.workers} workers")
 
-    def send_tasks(
-        self, from_loc: str, to_loc: str, start_date: str, workers: list = None
-    ) -> AsyncResult:
-        if workers is None:
-            workers = self.workers
-        print(f"Emitting to workers {workers}")
-        kwargs = {"from_loc": from_loc, "to_loc": to_loc, "start_date": start_date}
-        sigs = [
+        # Preparing worker's signatures
+        kwargs = journey.as_celery_kwargs()
+        workers_sigs = [
             signature(
                 "worker",
                 kwargs=kwargs,
                 routing_key=f"journey.{k}",
                 exchange="bonvoyage",
             )
-            for k in workers
+            for k in self.workers
         ]
-        broker = signature(
+        # Broker sig, then celery chord for orchestration
+        broker_signature = signature(
             "broker", kwargs=kwargs, routing_key="journey.broker", exchange="bonvoyage"
         )
-        r = chord(sigs)(broker)
-
+        r = chord(workers_sigs)(broker_signature)
         return r
 
-
-celery_app = Client(settings=Settings())
+    def get_result(self, uuid: str, logger):
+        logger.info("Fetching results for {}", uuid)
+        try:
+            task_result = AsyncResult(id=uuid)
+            if task_result.successful():
+                # Everything is OK, return the result
+                res = (task_result.result, 200)
+            elif task_result.status == states.FAILURE:
+                res = ({"error": task_result.result}, 500)
+            else:
+                # Task still running,please come back later
+                res = ({}, 204)
+        except TimeoutError:
+            # Task (with all workers) took too much time.
+            res = (
+                {"error": "Journey took too much time to calculate, it was timeouted"},
+                410,
+            )
+        finally:
+            return res
