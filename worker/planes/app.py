@@ -248,7 +248,7 @@ class PlaneWorker(BaseWorker):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        departure_date = dt.strptime(message.payload['start'], '%Y-%m-%d')
+        # departure_date = dt.strptime(message.payload['start'], '%Y-%m-%d')
 
         airports = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.airport_database, nb_different_city=2)
 

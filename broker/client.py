@@ -144,12 +144,12 @@ class Client(ConsumerMixin):
                 pass
             query_dep = TMW.Query(0, geoloc_dep,
                                   interurban_journey.steps[0].departure_point,
-                                  dt.strptime(params_json['start'], '%Y-%m-%d'))
+                                  dt.fromtimestamp(int(params_json['start'])))
             if query_dep.to_json() not in urban_queries_json:
                 urban_queries.append(query_dep)
                 urban_queries_json.append(query_dep.to_json())
             query_arr = TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                  geoloc_arr, dt.strptime(params_json['start'], '%Y-%m-%d'))
+                                  geoloc_arr, dt.fromtimestamp(int(params_json['start'])))
 
             if query_arr.to_json() not in urban_queries_json:
                 urban_queries.append(query_arr)
@@ -178,10 +178,10 @@ class Client(ConsumerMixin):
         for interurban_journey in journey_list:
             json_key_start = TMW.Query(0, geoloc_dep,
                                        interurban_journey.steps[0].departure_point,
-                                       dt.strptime(params_json['start'], '%Y-%m-%d')).to_json()
+                                       dt.fromtimestamp(int(params_json['start']))).to_json()
             start_to_station_steps = urban_journey_dict[str(json_key_start)]
             json_key_end = TMW.Query(0, interurban_journey.steps[-1].arrival_point,
-                                     geoloc_arr, dt.strptime(params_json['start'], '%Y-%m-%d')).to_json()
+                                     geoloc_arr, dt.fromtimestamp(int(params_json['start']))).to_json()
             station_to_arrival_steps = urban_journey_dict[str(json_key_end)]
 
             if (start_to_station_steps is not None) & (station_to_arrival_steps is not None):

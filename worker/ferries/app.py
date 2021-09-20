@@ -55,7 +55,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
         {
             "start_point": departure_point,
             "end_point": arrival_point,
-            "departure_date": date_departure.strftime("%Y-%m-%d"),
+            "departure_date": date_departure.timestamp(),
         }
     )
 
@@ -91,14 +91,14 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
             {
                 "start_point": departure_point,
                 "end_point": [route.lat_clean_dep, route.long_clean_dep],
-                "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "departure_date": date_departure.timestamp(),
             }
         )
         car_journey_arr = ors.ors_query_directions(
             {
                 "start_point": [route.lat_clean_arr, route.long_clean_arr],
                 "end_point": arrival_point,
-                "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "departure_date": date_departure.timestamp(),
             }
         )
         if (car_journey_arr is not None) and (car_journey_dep is not None):
@@ -224,7 +224,7 @@ class FerryWorker(BaseWorker):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        departure_date = dt.strptime(message.payload["start"], "%Y-%m-%d")
+        departure_date = dt.fromtimestamp(int(message.payload["start"]))
         ferry_trips = get_ferries(
             departure_date,
             geoloc_dep,

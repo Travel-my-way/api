@@ -58,7 +58,7 @@ def pandas_explode(df, column_to_explode):
 
 
 # function to get all trainline fares and trips
-def search_for_trips(date, start_point, end_point):
+def search_for_trips(date_timestamp, start_point, end_point):
     """
     This function takes in all the relevant information for the API call and returns a
         dataframe containing all the information from BlaBlaCar API
@@ -67,7 +67,7 @@ def search_for_trips(date, start_point, end_point):
     url = "https://public-api.blablacar.com/api/v3/trips"
 
     # formated_date = date + timedelta(seconds=3599)
-    formated_date = dt.strptime(date, "%Y-%m-%d")
+    formated_date = dt.fromtimestamp(date_timestamp)
     formated_date = dt.strftime(formated_date, "%Y-%m-%dT%H:%m:%S")
     params = {
         "key": tmw_api_keys.BLABLACAR_API_KEY,
@@ -82,7 +82,7 @@ def search_for_trips(date, start_point, end_point):
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        return format_blablacar_response(response.json(), date, start_point, end_point)
+        return format_blablacar_response(response.json(), date_timestamp, start_point, end_point)
     else:
         print(response.json())
         return None
@@ -267,7 +267,7 @@ class BlaBlaCarWorker(BaseWorker):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        all_trips = search_for_trips(message.payload["start"], geoloc_dep, geoloc_arr)
+        all_trips = search_for_trips(int(message.payload["start"]), geoloc_dep, geoloc_arr)
 
         # logger.info(f'len the trips {len(all_trips)}')
         if all_trips is None:

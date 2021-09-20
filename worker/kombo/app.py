@@ -1,7 +1,7 @@
 from loguru import logger
 import requests
 import pandas as pd
-from datetime import timedelta
+from datetime import timedelta, datetime as dt
 import copy
 import time
 from geopy.distance import distance
@@ -420,7 +420,7 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
                 search_kombo(
                     origin_city,
                     arrival_city,
-                    start,
+                    dt.strftime(dt.fromtimestamp(start), "%Y-%m-%d"),
                     nb_passengers=1,
                     fast_response=fast_response,
                 )
@@ -462,7 +462,7 @@ class KomboWorker(BaseWorker):
         geoloc_arr[0] = float(geoloc_arr[0])
         geoloc_arr[1] = float(geoloc_arr[1])
 
-        start = message.payload["start"]
+        start = int(message.payload["start"])
 
         all_cities = get_cities_from_geo_locs(geoloc_dep, geoloc_arr, self.city_db)
         if not all_cities:

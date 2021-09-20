@@ -75,7 +75,7 @@ def ors_query_directions(query, profile="driving-car", toll_price=True, _id=0, g
     local_distance = ors_step["routes"][0]["summary"]["distance"]
     local_emissions = emission.calculate_co2_emissions(constants.TYPE_CAR, local_distance)
 
-    formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
+    formated_date = dt.fromtimestamp(query["departure_date"])
 
     step = TMW.Journey_step(
         _id,
@@ -146,7 +146,7 @@ class ORSWorker(BaseWorker):
         query = {
             "start_point": geoloc_dep,
             "end_point": geoloc_arr,
-            "departure_date": message.payload["start"],
+            "departure_date": int(message.payload["start"]),
         }
         ors_journey = ors_query_directions(query)
 
