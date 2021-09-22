@@ -43,6 +43,7 @@ class Client(Celery):
             )
             for k in workers
         ]
+        print(sigs)
         broker = signature(
             "broker", kwargs=kwargs, routing_key="journey.broker", exchange="bonvoyage"
         )
