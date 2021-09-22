@@ -12,7 +12,6 @@ def worker(self, from_loc, to_loc, start_date):
     logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
 
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
-
     # Get cities aroung geolocation
     logger.info("Getting geoloc")
     all_cities = logic.get_cities_from_geo_locs(
@@ -21,7 +20,7 @@ def worker(self, from_loc, to_loc, start_date):
     if not all_cities:
         return list()
 
-    kombo_journeys = logic.compute_kombo_journey(all_cities, start_date)
+    kombo_journeys = logic.compute_kombo_journey(all_cities, int(start_date))
     logger.info("Got all journeys...")
 
     kombo_json = list()

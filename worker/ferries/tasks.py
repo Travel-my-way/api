@@ -14,7 +14,7 @@ def execute(self, from_loc, to_loc, start_date):
     logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
-    departure_date = dt.strptime(start_date, "%Y-%m-%d")
+    departure_date = dt.fromtimestamp(int(start_date))
     ferry_trips = logic.get_ferries(
         departure_date,
         geoloc_dep,
@@ -46,13 +46,13 @@ def execute(self, from_loc, to_loc, start_date):
 
         kombo_dep = kombo.compute_kombo_journey(
             cities_port_dep,
-            start=departure_date.strftime("%Y-%m-%d"),
+            start=departure_date.timestamp(),
             fast_response=True,
         )
 
         kombo_arr = kombo.compute_kombo_journey(
             cities_port_arr,
-            start=departure_date.strftime("%Y-%m-%d"),
+            start=departure_date.timestamp(),
             fast_response=True,
         )
 

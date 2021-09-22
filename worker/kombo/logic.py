@@ -1,6 +1,6 @@
 import requests
 import pandas as pd
-from datetime import timedelta
+from datetime import timedelta, datetime as dt
 import copy
 import time
 from loguru import logger
@@ -423,6 +423,7 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
     logger.info("Computing journeys")
     all_trips = pd.DataFrame()
 
+    start = dt.fromtimestamp(start)
     found_train = False
     for origin_city in all_cities["origin"]:
         for arrival_city in all_cities["arrival"]:
@@ -430,7 +431,7 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
                 search_kombo(
                     origin_city,
                     arrival_city,
-                    start,
+                    start.strftime("%Y-%m-%d"),
                     nb_passengers=1,
                     fast_response=fast_response,
                 )

@@ -106,7 +106,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) 
             0,
             geoloc_dep,
             interurban_journey.steps[0].departure_point,
-            dt.strptime(start_date, "%Y-%m-%d"),
+            dt.fromtimestamp(int(start_date)),
         )
         if query_dep.to_json() not in urban_queries_json:
             urban_queries.append(query_dep)
@@ -115,7 +115,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) 
             0,
             interurban_journey.steps[-1].arrival_point,
             geoloc_arr,
-            dt.strptime(start_date, "%Y-%m-%d"),
+            dt.fromtimestamp(int(start_date)),
         )
 
         if query_arr.to_json() not in urban_queries_json:
@@ -151,14 +151,14 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) 
             0,
             geoloc_dep,
             interurban_journey.steps[0].departure_point,
-            dt.strptime(start_date, "%Y-%m-%d"),
+            dt.fromtimestamp(int(start_date)),
         ).to_json()
         start_to_station_steps = urban_journey_dict[str(json_key_start)]
         json_key_end = TMW.Query(
             0,
             interurban_journey.steps[-1].arrival_point,
             geoloc_arr,
-            dt.strptime(start_date, "%Y-%m-%d"),
+            dt.fromtimestamp(int(start_date)),
         ).to_json()
         station_to_arrival_steps = urban_journey_dict[str(json_key_end)]
 

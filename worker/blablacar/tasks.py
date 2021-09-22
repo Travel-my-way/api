@@ -69,7 +69,7 @@ def search_for_trips(date, start_point, end_point):
     url = "https://public-api.blablacar.com/api/v3/trips"
 
     # formated_date = date + timedelta(seconds=3599)
-    formated_date = dt.strptime(date, "%Y-%m-%d")
+    formated_date = dt.fromtimestamp(date)
     formated_date = dt.strftime(formated_date, "%Y-%m-%dT%H:%m:%S")
     params = {
         "key": tmw_api_keys.BLABLACAR_API_KEY,
@@ -268,7 +268,7 @@ def worker(self, from_loc, to_loc, start_date):
     geoloc_arr[0] = float(geoloc_arr[0])
     geoloc_arr[1] = float(geoloc_arr[1])
 
-    all_trips = search_for_trips(start_date, geoloc_dep, geoloc_arr)
+    all_trips = search_for_trips(int(start_date), geoloc_dep, geoloc_arr)
 
     if all_trips is None:
         logger.warning("No trips found.")

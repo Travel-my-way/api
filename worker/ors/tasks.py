@@ -81,7 +81,7 @@ def ors_query_directions(
         constants.TYPE_CAR, local_distance
     )
 
-    formated_date = dt.strptime(query["departure_date"], "%Y-%m-%d")
+    formated_date = dt.fromtimestamp(query["departure_date"])
 
     step = TMW.Journey_step(
         _id,
@@ -145,7 +145,7 @@ def worker(self, from_loc, to_loc, start_date):
     query = {
         "start_point": geoloc_dep,
         "end_point": geoloc_arr,
-        "departure_date": start_date,
+        "departure_date": int(start_date),
     }
     ors_journey = ors_query_directions(query)
 
