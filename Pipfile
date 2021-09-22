@@ -19,7 +19,7 @@ pandas = '==1.1.5'
 openrouteservice = '==2.2.3'
 navitia-client = '==0.6.2'
 Shapely = '==1.7.1'
-celery = {extras = ["auth", "librabbitmq", "msgpack", "redis"],version = "==5.1.2"}
+celery = {extras = ["auth", "py-amqp", "msgpack", "redis"],version = "==5.1.2"}
 
 [requires]
 python_version = "3.8"
