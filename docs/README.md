@@ -1,12 +1,21 @@
-# Bon voyage, l'API
+# BonVoyage, the back stack
 
-Ce repo contient le code pour faire fonctionner l'API BonVoyage en local (docker)
+Welcome to the documentation for the **back** stack of BonVoyage project.
 
-## Prérequis
 
-* Docker
+BonVoyage is a low-carbon / carbon efficient travel search engine located at https://app.bonvoyage.eco/.
 
-Si vous développez sur l'API, vous devez aussi avoir installé [pipenv](https://pipenv.pypa.io/en/latest/) et avoir python 3.8 disponible ([pyenv](https://github.com/pyenv/pyenv) vous aidera sur ce coup)
+## Getting started
+
+If you're new to the projects, you should read the [architecture and flow](architecture.md) page in order to understand how the magic happens. When you headache is gone, you can proceed to install [prerequisites](README.md?id=prerequisites) and, finally, the [stack](stack.md) itself.
+
+## Prerequisites
+
+* Python 3.8+
+* [pipenv](https://pipenv.pypa.io/en/latest/)
+* [Docker](https://www.docker.com/) and [docker-compose](https://docs.docker.com/compose/)
+* Your favorite editor (PyCharm, Sublime Text, VSCode...)
+
 
 ## Composants docker-compose
 
@@ -18,15 +27,6 @@ Les identifiants / mot de passe / ID de la base sont disponibles dans le fichier
 
 Cette base est aussi linkée dans les divers composants.
 
-## Lancer l'API
-
-### Utilisation uniquement (cas du front)
-)
-Si vous voulez uniquement lancer l'API pour la consommer par le front, il vous suffit de lancer la commande suivante:
-
-```bash
-make front
-```
 
 ### Utilisation en développement de l'API
 
