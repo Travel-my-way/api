@@ -81,7 +81,7 @@ def ors_query_directions(
         constants.TYPE_CAR, local_distance
     )
 
-    formated_date = dt.fromtimestamp(query["departure_date"])
+    formated_date = dt.fromtimestamp(int(query["departure_date"]))
 
     step = TMW.Journey_step(
         _id,
