@@ -78,7 +78,7 @@ def ors_query_directions(
 
     local_distance = ors_step["routes"][0]["summary"]["distance"]
     local_emissions = emission.calculate_co2_emissions(
-        constants.TYPE_CAR, local_distance
+        constants.TYPE_CAR, local_distance, nb_passenger=query["nb_passenger"]
     )
 
     formated_date = dt.fromtimestamp(int(query["departure_date"]))
@@ -137,8 +137,9 @@ def ors_add_toll_price(step, toll_price_eur_per_km=0.025):
 
 @app.task(name="worker", bind=True)
 @wrappers.catch(timing=True)
-def worker(self, from_loc, to_loc, start_date):
-    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
+def worker(self, from_loc, to_loc, start_date, nb_passenger):
+    logger.info("Got request: from={} to={} start={} nb_passenger={}", from_loc, to_loc,
+                start_date, nb_passenger)
 
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
@@ -146,6 +147,7 @@ def worker(self, from_loc, to_loc, start_date):
         "start_point": geoloc_dep,
         "end_point": geoloc_arr,
         "departure_date": int(start_date),
+        "nb_passenger": int(nb_passenger)
     }
     ors_journey = ors_query_directions(query)
 
