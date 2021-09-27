@@ -39,7 +39,7 @@ def load_route_db():
     return route_db
 
 
-def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes_db):
+def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes_db, nb_passenger):
     """
     We create a ferry journey based on the ferry database we scraped
     """
@@ -48,6 +48,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
             "start_point": departure_point,
             "end_point": arrival_point,
             "departure_date": date_departure.strftime("%Y-%m-%d"),
+            "nb_passenger": nb_passenger
         }
     )
 
@@ -84,6 +85,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
                 "start_point": departure_point,
                 "end_point": [route.lat_clean_dep, route.long_clean_dep],
                 "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "nb_passenger": nb_passenger
             }
         )
         car_journey_arr = ors_query_directions(
@@ -91,6 +93,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
                 "start_point": [route.lat_clean_arr, route.long_clean_arr],
                 "end_point": arrival_point,
                 "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "nb_passenger": nb_passenger
             }
         )
         if (car_journey_arr is not None) and (car_journey_dep is not None):

@@ -257,9 +257,10 @@ def blablacar_journey(df_response):
 
 @app.task(name="worker", bind=True)
 @wrappers.catch(timing=True)
-def worker(self, from_loc, to_loc, start_date):
+def worker(self, from_loc, to_loc, start_date, nb_passenger):
     time_start = time.perf_counter()
-    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
+    logger.info("Got request: from={} to={} start={} nb_passenger={}", from_loc, to_loc,
+                start_date, nb_passenger)
 
     geoloc_dep = from_loc.split(",")
     geoloc_dep[0] = float(geoloc_dep[0])

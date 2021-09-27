@@ -8,8 +8,9 @@ from .. import constants
 
 @app.task(name="worker", bind=True)
 @wrappers.catch(timing=True)
-def worker(self, from_loc, to_loc, start_date):
-    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
+def worker(self, from_loc, to_loc, start_date, nb_passenger):
+    logger.info("Got request: from={} to={} start={} nb_passenger={}", from_loc, to_loc,
+                start_date, nb_passenger)
 
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
     # Get cities aroung geolocation

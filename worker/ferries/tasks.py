@@ -9,9 +9,10 @@ from worker.kombo import logic as kombo
 
 @app.task(name="worker", bind=True)
 @wrappers.catch(timing=True)
-def execute(self, from_loc, to_loc, start_date):
+def execute(self, from_loc, to_loc, start_date, nb_passenger):
 
-    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
+    logger.info("Got request: from={} to={} start={} nb_passenger={}", from_loc, to_loc,
+                start_date, nb_passenger)
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
     departure_date = dt.fromtimestamp(int(start_date))
@@ -21,6 +22,7 @@ def execute(self, from_loc, to_loc, start_date):
         geoloc_arr,
         global_vars["ferry_db"],
         global_vars["route_db"],
+        nb_passenger
     )
 
     if ferry_trips is None:

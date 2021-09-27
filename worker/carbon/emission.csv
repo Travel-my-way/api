@@ -22,6 +22,7 @@ ID,category,subcategory_1,subcategory_2,subcategory_3,fuel,capacity_min,capacity
 21,Transport,Passenger,Road,Bus,,,,,,250,100000,France,,0.154,kgCO2e/passager.km,60%,ADEME,ADEME,2014
 22,Transport,Passenger,Road,Car,petrol,,,,,,,France,,0.198,kgCO2e/km,20%,ADEME,ADEME,2018
 23,Transport,Passenger,Road,Car,diesel,,,,,,,France,,0.186,kgCO2e/km,20%,ADEME,ADEME,2018
-24,Transport,Passenger,Road,Car,avg,,,,,,,France,,0.178,kgCO2e/km,20%,ADEME,ADEME,2018
-25,Transport,Passenger,Road,Carpooling,avg,,,,,,,France,,0.058,kgCO2e/km,20%,,Blablacar,2014
-26,Transport,Passenger,Sea,Ferry,avg,,,,,,,France,,0.267,kgCO2e/km,20%,ADEME,https://www.tourdumondiste.com/limiter-son-empreinte-ecologique-en-voyage,2014
+24,Transport,Passenger,Road,Car,avg_with_1_6_passenger,,,,,,,France,,0.178,kgCO2e/km,20%,ADEME,ADEME,2018
+25,Transport,Passenger,Road,Car,avg,,,,,,,France,,0.2848,kgCO2e/km,20%,ADEME,ADEME,2018
+26,Transport,Passenger,Road,Carpooling,avg,,,,,,,France,,0.073,kgCO2e/km,20%,,Blablacar,2014
+27,Transport,Passenger,Sea,Ferry,avg,,,,,,,France,,0.267,kgCO2e/km,20%,ADEME,https://www.tourdumondiste.com/limiter-son-empreinte-ecologique-en-voyage,2014

@@ -341,7 +341,7 @@ def kombo_journey(df_response, passengers=1):
         i = i + 1
         # Go through all steps of the journey
         for index, leg in itinerary.iterrows():
-            logger.info("Journey step from {} to {}", leg["name"], leg.name_arr)
+            # logger.info("Journey step from {} to {}", leg["name"], leg.name_arr)
             local_distance_m = distance(
                 [leg.latitude, leg.longitude], [leg.latitude_arr, leg.longitude_arr]
             ).m
@@ -373,7 +373,7 @@ def kombo_journey(df_response, passengers=1):
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
-                logger.info("Calculating next step")
+                #logger.info("Calculating next step")
                 step = TMW.Journey_step(
                     i,
                     _type=constants.TYPE_TRANSFER,
@@ -395,7 +395,7 @@ def kombo_journey(df_response, passengers=1):
                 )
                 lst_sections.append(step)
                 i = i + 1
-        logger.info("Calulating train journeys")
+
         journey_train = TMW.Journey(
             id_journey,
             steps=lst_sections,

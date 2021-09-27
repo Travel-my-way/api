@@ -61,8 +61,9 @@ def json_to_journey(json_journey, id_journey):
 
 @app.task(name="broker", bind=True)
 @wrappers.catch(timing=True)
-def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) -> list:
-    logger.info("Got request: from={} to={} start={}", from_loc, to_loc, start_date)
+def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, nb_passenger: str) -> list:
+    logger.info("Got request: from={} to={} start={} nb_passenger={}", from_loc, to_loc,
+                start_date, nb_passenger)
 
     # Extract successful results from lists
     partials = [r for r in results if r["status"] == "success"]
@@ -138,8 +139,8 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str) 
                         "start_point": urban_query.start_point,
                         "end_point": urban_query.end_point,
                         "departure_date": urban_query.departure_date.strftime(
-                            "%Y-%m-%d"
-                        ),
+                            "%Y-%m-%d"),
+                        "nb_passenger": nb_passenger
                     },
                     avoid_ferries=False,
                 )

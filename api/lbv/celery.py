@@ -29,11 +29,11 @@ class Client(Celery):
         app.logger.info(f"Celery configured with workers {self.workers}")
 
     def send_tasks(
-        self, from_loc: str, to_loc: str, start_date: str, workers: list = None
+        self, from_loc: str, to_loc: str, start_date: str, nb_passenger: str, workers: list = None
     ) -> AsyncResult:
         if workers is None:
             workers = self.workers
-        kwargs = {"from_loc": from_loc, "to_loc": to_loc, "start_date": start_date}
+        kwargs = {"from_loc": from_loc, "to_loc": to_loc, "start_date": start_date, "nb_passenger": nb_passenger}
         sigs = [
             signature(
                 "worker",

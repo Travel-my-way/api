@@ -40,12 +40,12 @@ def get_carbon_frame_for_transport(transport_type: str) -> pd.DataFrame:
         carbon_frame = pd.read_csv(CARBON_DF_PATH, delimiter=",")
 
     # Return filtered frame
-    logger.debug("Returning carbon frame for {} type", transport_type)
+    # logger.debug("Returning carbon frame for {} type", transport_type)
     return carbon_frame[carbon_frame[TYPE_OF_TRANSPORT] == transport_type]
 
 
 def calculate_co2_emissions(
-    type_transport, distance_m, type_city=None, fuel=None, nb_seats=None
+    type_transport, distance_m, type_city=None, fuel=None, nb_seats=None, nb_passenger=1
 ):
     # read csv
     carbon_df = get_carbon_frame_for_transport(transport_type=type_transport)
@@ -71,4 +71,11 @@ def calculate_co2_emissions(
         carbon_df = carbon_df[carbon_df[FUEL] == fuel]
 
     # The result will be in grams of CO2
-    return carbon_df["value"].mean() * distance_m
+    if type_transport == constants.TYPE_CAR:
+        # For individual car we divide the impact by the number of passengers
+        logger.info(f'wesh wesh represent le port du havre ma gueuele {nb_passenger}')
+        carbon_result = carbon_df["value"].mean() * distance_m / nb_passenger
+    else :
+        carbon_result = carbon_df["value"].mean() * distance_m
+
+    return carbon_result
