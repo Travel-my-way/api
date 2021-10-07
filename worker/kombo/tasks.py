@@ -22,7 +22,6 @@ def worker(self, from_loc, to_loc, start_date, nb_passenger):
         return list()
 
     kombo_journeys = logic.compute_kombo_journey(all_cities, int(start_date))
-    logger.info("Got all journeys...")
 
     kombo_json = list()
     id_response = list()

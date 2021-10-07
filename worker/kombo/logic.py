@@ -60,6 +60,12 @@ def pandas_explode(df, column_to_explode):
     return return_df
 
 
+def count_relevant_stations(city):
+    relevant_stations = filter(lambda station: len(station['transportType']) > 0, city['stations'])
+
+    return len(list(relevant_stations))
+
+
 def update_city_list():
     headers = {
         "token": tmw_api_keys.KOMBO_API_KEY,
@@ -67,7 +73,7 @@ def update_city_list():
     r = requests.get("https://turing.kombo.co/city", headers=headers)
     if r.status_code == 200:
         cities = pd.DataFrame.from_dict(r.json())
-        cities["nb_stations"] = cities.apply(lambda x: len(x.stations), axis=1)
+        cities["nb_stations"] = cities.apply(count_relevant_stations, axis=1)
         cities = cities[cities["nb_stations"] > 0]
         return cities
 
@@ -108,18 +114,20 @@ def get_cities_from_geo_locs(geoloc_dep, geoloc_arrival, city_db, nb_different_c
     parent_station_id_list = dict()
 
     # We keep only the 2 closest cities from dep and arrival
+
     parent_station_id_list["origin"] = (
         stops_tmp[stops_tmp.distance_dep < 0.5]
-        .sort_values(by="distance_dep")
+        .sort_values(by="nb_stations", ascending=False)
         .head(nb_different_city)
         .id
     )
     parent_station_id_list["arrival"] = (
         stops_tmp[stops_tmp.distance_arrival < 0.5]
-        .sort_values(by="distance_arrival")
+        .sort_values(by="nb_stations", ascending=False)
         .head(nb_different_city)
         .id
     )
+
     return parent_station_id_list
 
 
@@ -256,14 +264,34 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
     return trips_clean
 
 
+def filter_journeys(df):
+    limit_train = 5
+    limit_plane = 2
+    limit_coach = 5
+
+    train_trips = list(df[df.transportType == 'train'].tripId)
+    train_trips = train_trips[0: min(len(train_trips), limit_train)]
+
+    coach_trips = list(df[df.transportType == 'bus'].tripId)
+    coach_trips = coach_trips[0: min(len(coach_trips), limit_coach)]
+
+    plane_trips = list(df[df.transportType == 'flight'].tripId)
+    plane_trips = plane_trips[0: min(len(plane_trips), limit_plane)]
+
+    logger.info(plane_trips)
+    df_filtered = df[df.tripId.isin(train_trips + coach_trips + plane_trips)]
+
+    return df_filtered
+
+
 def kombo_journey(df_response, passengers=1):
-    logger.info("Entering journey details")
     """
     This function takes in a DF with detailled info about all the Kombo trips
     It returns a list of TMW journey objects
     """
+    df_response = filter_journeys(df_response)
     # affect a price to each leg (otherwise we would multiply the price by the number of legs
-    df_response["price_step"] = df_response.price / (df_response.segments_nb * 100)
+    df_response["price_step"] = df_response['price'] / (df_response['segments_nb'] * 100)
 
     # Compute distance for each leg
     # print(df_response.columns)
@@ -300,6 +328,7 @@ def kombo_journey(df_response, passengers=1):
 
     # print(f'nb itinerary : {df_response.id_global.nunique()}')
     id_journey = 0
+
     for tripId in df_response.tripId.unique():
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
         # Make sure the legs of the trip are in the right order
@@ -413,8 +442,6 @@ def kombo_journey(df_response, passengers=1):
         journey_train.category = list(set(category_journey))
         lst_journeys.append(journey_train)
         id_journey += 1
-
-        logger.info("Got {} journeys from search", len(lst_journeys))
 
     return lst_journeys
 
