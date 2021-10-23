@@ -6,7 +6,7 @@ from worker.carbon import emission
 from worker.kombo.logic import update_city_list
 from worker.ors.tasks import ors_query_directions
 from geopy.distance import distance
-from datetime import timedelta
+from datetime import timedelta, datetime as dt
 
 
 # Global init function
@@ -47,7 +47,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
         {
             "start_point": departure_point,
             "end_point": arrival_point,
-            "departure_date": date_departure.strftime("%Y-%m-%d"),
+            "departure_date": date_departure,
             "nb_passenger": nb_passenger
         }
     )
@@ -65,7 +65,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
         routes.distance_dep_port + routes.distance_port_arrival + routes.distance_m
     )
 
-    if car_journey:
+    if len(car_journey.steps) > 0 :
         # only makes sense if the pseudo_distance is lower then the distance by a margin (shortcut by the sea)
         routes["is_relevant"] = routes.apply(
             lambda x: x.pseudo_distance_total < car_journey.total_distance, axis=1
@@ -84,7 +84,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
             {
                 "start_point": departure_point,
                 "end_point": [route.lat_clean_dep, route.long_clean_dep],
-                "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "departure_date": date_departure,
                 "nb_passenger": nb_passenger
             }
         )
@@ -92,7 +92,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
             {
                 "start_point": [route.lat_clean_arr, route.long_clean_arr],
                 "end_point": arrival_point,
-                "departure_date": date_departure.strftime("%Y-%m-%d"),
+                "departure_date": date_departure,
                 "nb_passenger": nb_passenger
             }
         )
@@ -109,6 +109,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
 
         relevant_journeys["date_dep"] = pd.to_datetime(relevant_journeys.date_dep)
 
+        date_departure = dt.fromtimestamp(int(date_departure))
         relevant_journeys = relevant_journeys[
             relevant_journeys.date_dep > date_departure
         ]

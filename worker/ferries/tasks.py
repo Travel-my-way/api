@@ -15,14 +15,14 @@ def execute(self, from_loc, to_loc, start_date, nb_passenger):
                 start_date, nb_passenger)
     (geoloc_dep, geoloc_arr) = utils.get_points(from_loc=from_loc, to_loc=to_loc)
 
-    departure_date = dt.fromtimestamp(int(start_date))
+    departure_date = int(start_date)
     ferry_trips = logic.get_ferries(
         departure_date,
         geoloc_dep,
         geoloc_arr,
         global_vars["ferry_db"],
         global_vars["route_db"],
-        nb_passenger
+        int(nb_passenger)
     )
 
     if ferry_trips is None:
@@ -48,13 +48,13 @@ def execute(self, from_loc, to_loc, start_date, nb_passenger):
 
         kombo_dep = kombo.compute_kombo_journey(
             cities_port_dep,
-            start=departure_date.timestamp(),
+            start=departure_date,
             fast_response=True,
         )
 
         kombo_arr = kombo.compute_kombo_journey(
             cities_port_arr,
-            start=departure_date.timestamp(),
+            start=departure_date,
             fast_response=True,
         )
 
