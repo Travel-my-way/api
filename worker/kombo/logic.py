@@ -223,7 +223,7 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
     else:
         logger.warning(f"error in search {r.status_code}")
         return pd.DataFrame()
-    time.sleep(0.5)
+    time.sleep(0.1)
     try:
         logger.info("Polling kombo results...")
         response = requests.get(
@@ -451,7 +451,7 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
     all_trips = pd.DataFrame()
 
     start = dt.fromtimestamp(start)
-    found_train = False
+    found_low_carbon = False
     for origin_city in all_cities["origin"]:
         for arrival_city in all_cities["arrival"]:
             all_trips = all_trips.append(
@@ -465,11 +465,11 @@ def compute_kombo_journey(all_cities, start, fast_response=False):
             )
             # Stop looking when we found train journeys
             if len(all_trips) > 0:
-                if len(all_trips[all_trips["transportType"] == "train"]) > 0:
-                    found_train = True
+                if len(all_trips[all_trips["transportType"].isin(["train", "bus"])]) > 0:
+                    found_low_carbon = True
                     break
             time.sleep(0.1)
-        if found_train:
+        if found_low_carbon:
             break
 
     if len(all_trips) == 0:
