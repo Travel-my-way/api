@@ -67,7 +67,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
 
     # Extract successful results from lists
     partials = [r for r in results if r["status"] == "success"]
-    logger.info(partials)
+    # logger.info(partials)
     content = {}
 
     journey_list = list()
@@ -107,7 +107,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
             0,
             geoloc_dep,
             interurban_journey.steps[0].departure_point,
-            dt.fromtimestamp(int(start_date)),
+            int(start_date),
         )
         if query_dep.to_json() not in urban_queries_json:
             urban_queries.append(query_dep)
@@ -116,7 +116,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
             0,
             interurban_journey.steps[-1].arrival_point,
             geoloc_arr,
-            dt.fromtimestamp(int(start_date)),
+            int(start_date),
         )
 
         if query_arr.to_json() not in urban_queries_json:
@@ -138,8 +138,7 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
                     {
                         "start_point": urban_query.start_point,
                         "end_point": urban_query.end_point,
-                        "departure_date": urban_query.departure_date.strftime(
-                            "%Y-%m-%d"),
+                        "departure_date": int(urban_query.departure_date),
                         "nb_passenger": nb_passenger
                     },
                     avoid_ferries=False,
@@ -152,14 +151,14 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
             0,
             geoloc_dep,
             interurban_journey.steps[0].departure_point,
-            dt.fromtimestamp(int(start_date)),
+            int(start_date),
         ).to_json()
         start_to_station_steps = urban_journey_dict[str(json_key_start)]
         json_key_end = TMW.Query(
             0,
             interurban_journey.steps[-1].arrival_point,
             geoloc_arr,
-            dt.fromtimestamp(int(start_date)),
+            int(start_date),
         ).to_json()
         station_to_arrival_steps = urban_journey_dict[str(json_key_end)]
 
@@ -169,22 +168,26 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
             if (start_to_station_steps[0] is not None) & (
                 station_to_arrival_steps[0] is not None
             ):
-                # interurban_journey.add_steps(start_to_station_steps[0].steps, start_end=True)
-                # interurban_journey.add_steps(station_to_arrival_steps[0].steps, start_end=False)
-                start_to_station_steps[0].update()
-                station_to_arrival_steps[0].update()
-                interurban_journey.add_journey_as_steps(
-                    start_to_station_steps[0], start_end=True
-                )
-                interurban_journey.add_journey_as_steps(
-                    station_to_arrival_steps[0], start_end=False
-                )
+                if (len(start_to_station_steps[0].steps) > 0) & (
+                        len(station_to_arrival_steps[0].steps) > 0
+                ):
+                    # interurban_journey.add_steps(start_to_station_steps[0].steps, start_end=True)
+                    # interurban_journey.add_steps(station_to_arrival_steps[0].steps, start_end=False)
+                    start_to_station_steps[0].update()
+                    station_to_arrival_steps[0].update()
+                    interurban_journey.add_journey_as_steps(
+                        start_to_station_steps[0], start_end=True
+                    )
+                    interurban_journey.add_journey_as_steps(
+                        station_to_arrival_steps[0], start_end=False
+                    )
 
         interurban_journey.update()
 
     response = list()
+
     for journey in journey_list:
         # response[journey.id] = journey.to_json()
         response.append(journey.to_json())
-
+    logger.info(response)
     return response

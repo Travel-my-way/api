@@ -7,9 +7,10 @@ from .. import TMW
 
 from worker.carbon import emission
 
-
+import re
 import openrouteservice
 from datetime import datetime as dt
+from geopy.distance import distance
 
 """
 OPEN ROUTE SERVICES FUNCTIONS
@@ -36,6 +37,42 @@ def ors_profile(profile):  # Should be integrated into CONSTANTS.py
         "cycling-electric": "bike",
     }
     return dict_ors_profile[profile]
+
+
+def find_ors_step(coord, ors_client, falty_coord=None, profile="driving-car", _id=0,
+                     geometry=False, options=True) :
+    # Let's try to look around the falty coord
+    falty_coord = [float(re.findall('-?[0-9]+.[0-9]+', falty_coord[0])[0])
+                   , float(re.findall('-?[0-9]+.[0-9]+', falty_coord[1])[0])]
+    if distance(coord[0], falty_coord).m < 100:
+        is_dep = True
+        new_coord_list = list([[coord[0][0]-0.05, coord[0][1]],[coord[0][0]+0.05,coord[0][1]],
+                       [coord[0][0], coord[0][1] - 0.05], [coord[0][0] ,coord[0][1]+0.05]])
+    elif distance(coord[1], falty_coord).m < 100:
+        is_dep = False
+        new_coord_list = list([coord[1][0]-0.02,coord[1][1]],[coord[1][0]+0.02,coord[1][1]],
+                       [coord[1][0], coord[1][1] - 0.02],[coord[1][0],coord[1][1]+0.02])
+    else:
+        return None
+    logger.info(new_coord_list)
+    for new_coord in new_coord_list:
+        if is_dep:
+            new_coord_couple = [new_coord, coord[1]]
+        else:
+            new_coord_couple = [coord[0], new_coord]
+        try:
+            ors_step = ors_client.directions(
+                new_coord_couple,
+                profile=profile,
+                instructions=False,
+                geometry=geometry,
+                options=options)
+            return ors_step
+        except Exception as e:
+            logger.error(e)
+
+    # Nothing worked
+    return None
 
 
 def ors_query_directions(
@@ -70,15 +107,23 @@ def ors_query_directions(
             options=options,
         )
     except Exception as e:
-        logger.error(e)
-        return None
+        logger.info(e.message)
+
+        if e.message['error']['code'] == 2010:
+            falty_coord = e.message['error']['message'].split(': ')[1]
+            falty_coord = falty_coord.split(' ')
+            ors_step = find_ors_step(coord, ors_client, falty_coord, profile,
+                                        _id, geometry, options)
+
+        if ors_step is None:
+            return TMW.Journey(_id=-1)
 
     # geojson = convert.decode_polyline(ors_step['routes'][0]['geometry'])
     # logger.info(ors_step)
 
     local_distance = ors_step["routes"][0]["summary"]["distance"]
     local_emissions = emission.calculate_co2_emissions(
-        constants.TYPE_CAR, local_distance, nb_passenger=query["nb_passenger"]
+        constants.TYPE_CAR, local_distance, nb_passenger=int(query["nb_passenger"])
     )
 
     formated_date = dt.fromtimestamp(int(query["departure_date"]))
@@ -151,7 +196,7 @@ def worker(self, from_loc, to_loc, start_date, nb_passenger):
     }
     ors_journey = ors_query_directions(query)
 
-    if ors_journey:
+    if len(ors_journey.steps) > 0:
         response = list()
         response.append(ors_journey.to_json())
         return response
