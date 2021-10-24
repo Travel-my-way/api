@@ -389,7 +389,7 @@ def kombo_journey(df_response, passengers=1):
                 gCO2=int(local_emissions),
                 departure_point=[leg.latitude, leg.longitude],
                 arrival_point=[leg.latitude_arr, leg.longitude_arr],
-                departure_stop_name=leg.name,
+                departure_stop_name=leg['name'],
                 arrival_stop_name=leg.name_arr,
                 departure_date=int(leg.departureTime.timestamp()),
                 arrival_date=int(leg.arrivalTime.timestamp()),
@@ -402,7 +402,7 @@ def kombo_journey(df_response, passengers=1):
             i = i + 1
             # add transfer steps
             if not pd.isna(leg.next_departure):
-                #logger.info("Calculating next step")
+                # logger.info("Calculating next step")
                 step = TMW.Journey_step(
                     i,
                     _type=constants.TYPE_TRANSFER,
