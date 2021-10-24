@@ -133,7 +133,7 @@ def get_planes(origin_airport, arrival_airport, plane_db):
             "distance_m",
         ]
         relevant_journeys["nb_step"] = 1
-        return relevant_journeys
+        return relevant_journeys.head(1)
 
     else:
         # We search for liaison with transfert
@@ -144,7 +144,7 @@ def get_planes(origin_airport, arrival_airport, plane_db):
 
         if len(relevant_journeys) > 0:
             relevant_journeys["nb_step"] = 2
-            return relevant_journeys
+            return relevant_journeys.head(1)
         else:
             return None
 
