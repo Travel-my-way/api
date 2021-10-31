@@ -102,3 +102,11 @@ services:
       ORS_API_KEY: ${ORS_API_KEY}
     depends_on:
       - rabbitmq
+  ferries:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: ferries
+    depends_on:
+      - rabbitmq

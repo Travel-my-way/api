@@ -4,6 +4,7 @@ INITIATE CLASSES
 from datetime import datetime as dt
 from . import constants
 
+
 class Journey:
     def __init__(self, _id, departure_date=dt.now(), arrival_date=dt.now(), booking_link='', steps=[]):
         self.id = _id
