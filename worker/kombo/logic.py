@@ -75,6 +75,7 @@ def update_city_list():
         cities = pd.DataFrame.from_dict(r.json())
         cities["nb_stations"] = cities.apply(count_relevant_stations, axis=1)
         cities = cities[cities["nb_stations"] > 0]
+        cities.to_csv('city_kombo.csv', index=False)
         return cities
 
     else:
@@ -270,12 +271,15 @@ def filter_journeys(df):
     limit_coach = 5
 
     train_trips = list(df[df.transportType == 'train'].tripId)
+    coach_trips = list(df[df.transportType == 'bus'].tripId)
+    plane_trips = list(df[df.transportType == 'flight'].tripId)
+
+    train_trips = [trip for trip in train_trips if trip not in plane_trips]
     train_trips = train_trips[0: min(len(train_trips), limit_train)]
 
-    coach_trips = list(df[df.transportType == 'bus'].tripId)
+    coach_trips = [trip for trip in coach_trips if trip not in plane_trips]
     coach_trips = coach_trips[0: min(len(coach_trips), limit_coach)]
 
-    plane_trips = list(df[df.transportType == 'flight'].tripId)
     plane_trips = plane_trips[0: min(len(plane_trips), limit_plane)]
 
     logger.info(plane_trips)

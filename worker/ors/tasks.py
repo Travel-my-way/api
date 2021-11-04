@@ -42,8 +42,6 @@ def ors_profile(profile):  # Should be integrated into CONSTANTS.py
 def find_ors_step(coord, ors_client, falty_coord=None, profile="driving-car", _id=0,
                      geometry=False, options=True) :
     # Let's try to look around the falty coord
-    falty_coord = [float(re.findall('-?[0-9]+.[0-9]+', falty_coord[0])[0])
-                   , float(re.findall('-?[0-9]+.[0-9]+', falty_coord[1])[0])]
     if distance(coord[0], falty_coord).m < 100:
         is_dep = True
         new_coord_list = list([[coord[0][0]-0.05, coord[0][1]],[coord[0][0]+0.05,coord[0][1]],
@@ -112,8 +110,12 @@ def ors_query_directions(
         if e.message['error']['code'] == 2010:
             falty_coord = e.message['error']['message'].split(': ')[1]
             falty_coord = falty_coord.split(' ')
+            falty_coord = [float(re.findall('-?[0-9]+.[0-9]+', falty_coord[0])[0])
+                , float(re.findall('-?[0-9]+.[0-9]+', falty_coord[1])[0])]
             ors_step = find_ors_step(coord, ors_client, falty_coord, profile,
                                         _id, geometry, options)
+        else :
+            ors_step = None
 
         if ors_step is None:
             return TMW.Journey(_id=-1)

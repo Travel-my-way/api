@@ -4,7 +4,7 @@ from loguru import logger
 from .. import constants
 from . import app, global_vars, logic
 from worker import wrappers, utils
-from worker.kombo import logic as kombo
+from . import kombo_logic as kombo
 
 
 @app.task(name="worker", bind=True)
