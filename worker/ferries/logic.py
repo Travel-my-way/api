@@ -43,6 +43,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
     """
     We create a ferry journey based on the ferry database we scraped
     """
+    logger.info('eddes')
     car_journey = ors_query_directions(
         {
             "start_point": departure_point,
@@ -157,6 +158,8 @@ def ferry_journey(journeys):
             gCO2=0,
             departure_point=[row.lat_clean_dep, row.long_clean_dep],
             arrival_point=[row.lat_clean_dep, row.long_clean_dep],
+            departure_stop_name=row['port_dep'],
+            arrival_stop_name=row['port_dep'],
             departure_date=int((row.date_dep - timedelta(seconds=15 * 60)).timestamp()),
             arrival_date=int(row.date_dep.timestamp()),
             geojson=[],
@@ -173,6 +176,8 @@ def ferry_journey(journeys):
             gCO2=local_emissions,
             departure_point=[row.lat_clean_dep, row.long_clean_dep],
             arrival_point=[row.lat_clean_arr, row.long_clean_arr],
+            departure_stop_name=row['port_dep'],
+            arrival_stop_name=row['port_arr'],
             departure_date=int(row.date_dep.timestamp()),
             arrival_date=int(row.date_arr.timestamp()),
             booking_link="https://www.ferrysavers.co.uk/ferry-routes.htm",

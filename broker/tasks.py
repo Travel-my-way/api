@@ -128,6 +128,8 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
     logger.info(f"Got {len(urban_queries)} urban queries")
 
     urban_journey_dict = dict()
+    departure_point_name = "Départ"
+    arrival_point_name = "Arrivé"
     for urban_query in urban_queries:
         urban_journey = Navitia.navitia_query_directions(urban_query)
 
@@ -144,6 +146,12 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
                     avoid_ferries=False,
                 )
             )
+        elif urban_journey is not None:
+            if urban_query.start_point == geoloc_dep:
+                departure_point_name = urban_journey[0].steps[0].departure_stop_name
+            elif urban_query.end_point == geoloc_arr:
+                arrival_point_name = urban_journey[0].steps[-1].arrival_stop_name
+
         urban_journey_dict[str(urban_query.to_json())] = urban_journey
 
     for interurban_journey in journey_list:
@@ -183,6 +191,18 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
                     )
 
         interurban_journey.update()
+        # create stop names for ors
+        for step_nb in range(len(interurban_journey.steps)):
+            step = interurban_journey.steps[step_nb]
+            if (step.departure_stop_name is None) or (step.departure_stop_name == ""):
+                if step_nb == 0:
+                    step.departure_stop_name = departure_point_name
+                else :
+                    step.departure_stop_name = interurban_journey.steps[step_nb-1].arrival_stop_name
+                if step_nb == len(interurban_journey.steps)-1:
+                        step.arrival_stop_name = arrival_point_name
+                else:
+                    step.arrival_stop_name = interurban_journey.steps[step_nb+1].departure_stop_name
 
     response = list()
 
