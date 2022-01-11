@@ -133,6 +133,8 @@ class Journey:
         if start_end:
             pseudo_step.label = f'Tranport entre point de départ {journey_to_add.steps[0].departure_stop_name} ' \
                                 f'et {self.steps[0].departure_stop_name}'
+            pseudo_step.departure_date = self.departure_date - pseudo_step.duration_s
+            pseudo_step.arrival_date = self.departure_date
             # we update the ids of the steps to preserve the order of the whole journey
             for step_old in self.steps:
                 step_old.id = step_old.id + 1
@@ -142,6 +144,8 @@ class Journey:
         else :
             pseudo_step.label = f'Tranport entre {self.steps[-1].arrival_stop_name} et' \
                                 f' arrivé au {journey_to_add.steps[-1].arrival_stop_name} '
+            pseudo_step.departure_date = self.arrival_date
+            pseudo_step.arrival_date = self.arrival_date + pseudo_step.duration_s
             nb_existing_steps = len(self.steps)
             pseudo_step.id = nb_existing_steps
             self.steps.append(pseudo_step)
