@@ -272,7 +272,7 @@ def filter_journeys(df):
 
     train_trips = list(df[df.transportType == 'train'].tripId)
     coach_trips = list(df[df.transportType == 'bus'].tripId)
-    plane_trips = list(df[df.transportType == 'flight'].tripId)
+    plane_trips = list(df[df.transportType == 'flight'].sort_values(by= 'segments_nb').tripId)
 
     train_trips = [trip for trip in train_trips if trip not in plane_trips]
     train_trips = train_trips[0: min(len(train_trips), limit_train)]
