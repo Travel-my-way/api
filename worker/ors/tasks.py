@@ -136,7 +136,7 @@ def ors_query_directions(
         label=profile,
         distance_m=local_distance,
         duration_s=ors_step["routes"][0]["summary"]["duration"],
-        price_EUR=[ors_gas_price(ors_step["routes"][0]["summary"]["distance"])],
+        price_EUR=[round(ors_gas_price(ors_step["routes"][0]["summary"]["distance"]),2)],
         gCO2=local_emissions,
         # geojson=geojson,
         departure_point=query["start_point"],
