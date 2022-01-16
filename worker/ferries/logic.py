@@ -71,7 +71,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
         routes["is_relevant"] = routes.apply(
             lambda x: x.pseudo_distance_total < car_journey.total_distance, axis=1
         )
-        routes = routes[routes.is_relevant]
+        routes = routes[routes.is_relevant].sort_values(by="pseudo_distance_total").head(2)
     else:
         # There are no roads, better try a boat then
         routes["is_relevant"] = True
@@ -97,7 +97,7 @@ def get_ferries(date_departure, departure_point, arrival_point, ferry_db, routes
                 "nb_passenger": nb_passenger
             }
         )
-        if (car_journey_arr is not None) and (car_journey_dep is not None):
+        if (len(car_journey_arr.steps) > 0) and (len(car_journey_dep.steps) > 0):
             relevant_routes = relevant_routes.append(route)
 
     relevant_journeys = pd.DataFrame()
