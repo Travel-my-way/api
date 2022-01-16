@@ -48,8 +48,8 @@ def find_ors_step(coord, ors_client, falty_coord=None, profile="driving-car", _i
                        [coord[0][0], coord[0][1] - 0.05], [coord[0][0] ,coord[0][1]+0.05]])
     elif distance(coord[1], falty_coord).m < 100:
         is_dep = False
-        new_coord_list = list([coord[1][0]-0.02,coord[1][1]],[coord[1][0]+0.02,coord[1][1]],
-                       [coord[1][0], coord[1][1] - 0.02],[coord[1][0],coord[1][1]+0.02])
+        new_coord_list = list([[coord[1][0]-0.02,coord[1][1]],[coord[1][0]+0.02,coord[1][1]],
+                       [coord[1][0], coord[1][1] - 0.02],[coord[1][0],coord[1][1]+0.02]])
     else:
         return None
     logger.info(new_coord_list)
