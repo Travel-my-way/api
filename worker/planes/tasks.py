@@ -196,8 +196,9 @@ def plane_journey(plane_trips):
         elif row.nb_step == 2:
             # Trip with transfert
             local_emissions = emission.calculate_co2_emissions(
-                constants.TYPE_PLANE, distance_m
-            )
+                constants.TYPE_PLANE, row.distance_m_first) + \
+                              emission.calculate_co2_emissions(
+                                  constants.TYPE_PLANE, row.distance_m_sec)
             journey_steps = list()
             # first leg
             journey_step = TMW.Journey_step(
