@@ -152,8 +152,6 @@ def get_planes(origin_airport, arrival_airport, plane_db):
 def plane_journey(plane_trips):
 
     journey_list = list()
-    logger.info(plane_trips)
-    logger.info(type(plane_trips))
     for index, row in plane_trips.iterrows():
         if row.nb_step == 1:
             # Direct Flights
