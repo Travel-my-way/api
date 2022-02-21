@@ -49,6 +49,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           image: bonvoyage-${{ matrix.component }}
           tag: ${{ env.image_version }}
+          tag_with_latest: true
           cache: true
           cache_registry: cache
           build_file: ./${{ matrix.component }}/Dockerfile
