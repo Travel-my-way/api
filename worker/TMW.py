@@ -69,7 +69,7 @@ class Journey:
         self.score = 0
         self.total_distance = sum(filter(None,[step.distance_m for step in self.steps]))
         self.total_duration = sum(filter(None,[step.duration_s for step in self.steps]))
-        self.total_price_EUR = sum(filter(None,[sum(step.price_EUR) for step in self.steps]))
+        self.total_price_EUR = round(sum(filter(None,[sum(step.price_EUR) for step in self.steps])), 2)
         self.total_gCO2 = sum(filter(None,[step.gCO2 for step in self.steps]))
         self.bike_friendly = all(step.bike_friendly for step in self.steps)
         if len(self.steps)>0:
@@ -83,6 +83,9 @@ class Journey:
             if self.category == list():
                 self.category = list(set((filter(lambda x: x in [constants.TYPE_BUS, constants.TYPE_BIKE, constants.TYPE_METRO,
                                                  constants.TYPE_TRAM], [step.type for step in self.steps]))))
+            for i in range(len(self.steps)):
+                for j in range(len(self.steps[i].price_EUR)):
+                    self.steps[i].price_EUR[j] = round(self.steps[i].price_EUR[j], 2)
         return self
 
     def add_steps(self, steps_to_add, start_end=True):
