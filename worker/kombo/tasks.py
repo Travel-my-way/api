@@ -24,44 +24,9 @@ def worker(self, from_loc, to_loc, start_date, nb_passenger):
     kombo_journeys = logic.compute_kombo_journey(all_cities, int(start_date))
 
     kombo_json = list()
-    id_response = list()
 
-    limit_train = 5
-    limit_plane = 2
-    limit_coach = 5
-
-    train_journey = [
-        journey
-        for journey in kombo_journeys
-        if constants.TYPE_TRAIN in journey.category
-    ]
-    coach_journey = [
-        journey
-        for journey in kombo_journeys
-        if constants.TYPE_COACH in journey.category
-    ]
-    plane_journey = [
-        journey
-        for journey in kombo_journeys
-        if constants.TYPE_PLANE in journey.category
-    ]
-
-    for journey in train_journey[0:limit_train]:
+    for journey in kombo_journeys:
         kombo_json.append(journey.to_json())
-        id_response.append(journey.id)
-
-    nb_coach = 0
-    for journey in coach_journey:
-        if (journey.id not in id_response) & (nb_coach < limit_coach):
-            kombo_json.append(journey.to_json())
-            id_response.append(journey.id)
-            nb_coach += 1
-    nb_plane = 0
-    for journey in plane_journey:
-        if (journey.id not in id_response) & (nb_plane < limit_plane):
-            kombo_json.append(journey.to_json())
-            id_response.append(journey.id)
-            nb_plane += 1
 
     logger.info("Got {} kombo journeys", len(kombo_json))
 

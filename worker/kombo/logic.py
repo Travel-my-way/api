@@ -266,13 +266,17 @@ def search_kombo(id_dep, id_arr, date, nb_passengers=1, fast_response=False):
 
 
 def filter_journeys(df):
-    limit_train = 5
-    limit_plane = 2
+    limit_train = 8
+    limit_pure_train = 3
     limit_coach = 5
+    limit_plane = 2
+
+    df = df.sort_values(by='segments_nb')
 
     train_trips = list(df[df.transportType == 'train'].tripId)
     coach_trips = list(df[df.transportType == 'bus'].tripId)
-    plane_trips = list(df[df.transportType == 'flight'].sort_values(by= 'segments_nb').tripId)
+    plane_trips = list(df[df.transportType == 'flight'].tripId)
+    pure_train_trips = list(set(train_trips) - set(coach_trips))
 
     train_trips = [trip for trip in train_trips if trip not in plane_trips]
     train_trips = train_trips[0: min(len(train_trips), limit_train)]
@@ -280,10 +284,13 @@ def filter_journeys(df):
     coach_trips = [trip for trip in coach_trips if trip not in plane_trips]
     coach_trips = coach_trips[0: min(len(coach_trips), limit_coach)]
 
+    pure_train_trips = [trip for trip in pure_train_trips if trip not in plane_trips]
+    pure_train_trips = pure_train_trips[0:min(len(pure_train_trips), limit_pure_train)]
+
     plane_trips = plane_trips[0: min(len(plane_trips), limit_plane)]
 
     logger.info(plane_trips)
-    df_filtered = df[df.tripId.isin(train_trips + coach_trips + plane_trips)]
+    df_filtered = df[df.tripId.isin(train_trips + coach_trips + plane_trips + pure_train_trips)]
 
     return df_filtered
 
