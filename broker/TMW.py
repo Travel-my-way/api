@@ -34,13 +34,13 @@ class Journey:
                 'score': self.score or 0,
                 'total_distance': self.total_distance or 0,
                 'total_duration': self.total_duration or 0,
-                'total_price_EUR': self.total_price_EUR or '',
+                'total_price_EUR': self.total_price_EUR or 0,
                 'departure_point': self.departure_point or '',
                 'arrival_point': self.arrival_point or '',
                 'departure_date': int(self.departure_date) or 0,
                 'arrival_date': int(self.arrival_date) or 0,
                 'total_gCO2': self.total_gCO2 or 0,
-                'is_real_journey': self.is_real_journey or '',
+                'is_real_journey': self.is_real_journey or False,
                 'booking_link': self.booking_link or '',
                 'journey_steps': self.jsonify_steps()
                 }

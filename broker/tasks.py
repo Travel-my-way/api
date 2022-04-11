@@ -5,6 +5,7 @@ from . import app
 from broker import wrappers
 from . import Navitia
 from . import TMW
+from . import constants
 from worker.ors.tasks import ors_query_directions
 
 
@@ -56,6 +57,7 @@ def json_to_journey(json_journey, id_journey):
     )
 
     journey.category = json_journey["category"]
+    journey.is_real_journey = json_journey["is_real_journey"]
     return journey
 
 
@@ -99,7 +101,16 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
     urban_queries = list()
     urban_queries_json = list()
     logger.info(f"on a {len(journey_list)} journey")
+
+    plane_from_kombo = False
+
     for interurban_journey in journey_list:
+        # prepare to get rid of fake plane journeys if we have actual plane trips from kombo
+        if constants.TYPE_PLANE in interurban_journey.category:
+            if interurban_journey.is_real_journey:
+                plane_from_kombo = True
+
+        # create the intra_urban queries for Naviitia
         if len(interurban_journey.steps[0].departure_point) == 1:
             logger.warning("mauvais trip")
             pass
@@ -123,7 +134,10 @@ def compute_results(results: list, from_loc: str, to_loc: str, start_date: str, 
             urban_queries.append(query_arr)
             urban_queries_json.append(query_arr.to_json())
 
-    # Deduplicate queries
+    # Drop fake journeys if we can
+    if plane_from_kombo:
+        journey_list = [journey for journey in journey_list if journey.is_real_journey]
+
     # urban_queries = list(set(urban_queries))
     logger.info(f"Got {len(urban_queries)} urban queries")
 

@@ -186,6 +186,7 @@ def plane_journey(plane_trips):
             journey.total_gCO2 = local_emissions
             journey.category = [constants.TYPE_PLANE]
             journey.booking_link = ""
+            journey.is_real_journey = False
             journey.departure_point = [row.latitude_dep, row.longitude_dep]
             journey.arrival_point = [row.latitude_arr, row.longitude_arr]
             journey.update()
@@ -244,6 +245,7 @@ def plane_journey(plane_trips):
             journey.total_gCO2 = local_emissions
             journey.category = [constants.TYPE_PLANE]
             journey.booking_link = ""
+            journey.is_real_journey = False
             journey.departure_point = [row.latitude_dep_first, row.longitude_dep_first]
             journey.arrival_point = [row.latitude_arr_sec, row.longitude_arr_sec]
             journey.update()
@@ -283,6 +285,7 @@ def ultra_fake_plane_journey(geoloc_dep, geoloc_arr):
     journey.total_gCO2 = local_emissions
     journey.category = [constants.TYPE_PLANE]
     # journey.booking_link = ''
+    journey.is_real_journey = False
     journey.departure_point = geoloc_dep
     journey.arrival_point = geoloc_arr
     journey.update()
