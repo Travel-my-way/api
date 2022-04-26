@@ -289,7 +289,6 @@ def filter_journeys(df):
 
     plane_trips = plane_trips[0: min(len(plane_trips), limit_plane)]
 
-    logger.info(plane_trips)
     df_filtered = df[df.tripId.isin(train_trips + coach_trips + plane_trips + pure_train_trips)]
 
     return df_filtered
@@ -344,6 +343,7 @@ def kombo_journey(df_response, passengers=1):
         itinerary = df_response[df_response.tripId == tripId].reset_index(drop=True)
         # Make sure the legs of the trip are in the right order
         itinerary = itinerary.sort_values(by="departureTime")
+
         # boolean to know whether and when there will be a transfer after the leg
         itinerary["next_departure"] = itinerary.departureTime.shift(-1)
         itinerary["next_stop_name"] = itinerary.name.shift(-1)
@@ -450,7 +450,8 @@ def kombo_journey(df_response, passengers=1):
             if step.type not in [constants.TYPE_TRANSFER, constants.TYPE_WAIT]:
                 category_journey.append(step.type)
 
-        journey_train.category = list(set(category_journey))
+        # journey_train.category = list(set(category_journey))
+        journey_train.category = category_journey
         lst_journeys.append(journey_train)
         id_journey += 1
 

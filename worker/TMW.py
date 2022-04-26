@@ -77,9 +77,9 @@ class Journey:
             self.arrival_point = self.steps[-1].arrival_point
             self.departure_date = self.steps[0].departure_date
             self.arrival_date = self.steps[-1].arrival_date
-            self.category = list(set((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_COACH,
+            self.category = list((filter(lambda x: x in [constants.TYPE_TRAIN, constants.TYPE_PLANE,constants.TYPE_COACH,
                                                              constants.TYPE_FERRY, constants.TYPE_CARPOOOLING, constants.TYPE_CAR],
-                                             [step.type for step in self.steps]))))
+                                             [step.type for step in self.steps])))
             if self.category == list():
                 self.category = list(set((filter(lambda x: x in [constants.TYPE_BUS, constants.TYPE_BIKE, constants.TYPE_METRO,
                                                  constants.TYPE_TRAM], [step.type for step in self.steps]))))
@@ -135,6 +135,7 @@ class Journey:
                                 )
         # if the steps are added at the beginning of the journey
         if start_end:
+            pseudo_step.arrival_stop_name = self.steps[0].departure_stop_name
             pseudo_step.label = f'Tranport entre point de départ {journey_to_add.steps[0].departure_stop_name} ' \
                                 f'et {self.steps[0].departure_stop_name}'
             # we update the ids of the steps to preserve the order of the whole journey
@@ -143,7 +144,8 @@ class Journey:
             self.steps.insert(0, pseudo_step)
             self.departure_date = self.departure_date - additionnal_duration
         # if the steps are at the end of the journey
-        else :
+        else:
+            pseudo_step.departure_stop_name = self.steps[-1].arrival_stop_name
             pseudo_step.label = f'Tranport entre {self.steps[-1].arrival_stop_name} et' \
                                 f' arrivé au {journey_to_add.steps[-1].arrival_stop_name} '
             nb_existing_steps = len(self.steps)
