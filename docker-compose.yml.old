@@ -1,0 +1,112 @@
+version: "3.8"
+
+# Common config
+x-config:
+  &default-config
+  CELERY_BROKER_URL: amqp://user:bitnami@rabbitmq:5672/
+  CELERY_RESULT_BACKEND: redis://redis:6379
+
+volumes:
+  pgdata:
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    environment:
+      << : *default-config
+      FLASK_APP: api.lbv:create_app('docker-compose')
+      WORKERS: blablacar,planes,kombo,ors
+    ports:
+      - "8080:80"
+
+  database:
+    image: 'postgis/postgis:13-3.1-alpine'
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: pg_password
+      POSTGRES_USER: bonvoyage_usr
+      POSTGRES_DB: bonvoyage
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  rabbitmq:
+    image: 'bitnami/rabbitmq:latest'
+    environment:
+      RABBITMQ_PLUGINS: rabbitmq_management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      ALLOW_EMPTY_PASSWORD: 'yes'
+    ports:
+      - "6379:6379"
+
+  flower:
+    image: 'mher/flower'
+    ports:
+      - "5555:5555"
+    environment:
+      << : *default-config
+      FLOWER_PURGE_OFFLINE_WORKERS: 1
+      FLOWER_BROKER_API: http://user:bitnami@rabbitmq:15672/api/
+
+  broker:
+    image: 'localhost:32000/broker'
+    hostname: broker.docker.local
+    environment:
+      << : *default-config
+      NAVITIA_API_KEY: ${NAVITIA_API_KEY}
+      ORS_API_KEY: ${ORS_API_KEY}
+    depends_on:
+      - rabbitmq
+
+  blablacar:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: blablacar
+      BLABLACAR_API_KEY: ${BLABLACAR_API_KEY}
+    depends_on:
+      - rabbitmq
+  planes:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: planes
+    depends_on:
+      - rabbitmq
+  kombo:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: kombo
+      KOMBO_API_KEY: ${KOMBO_API_KEY}
+    depends_on:
+      - rabbitmq
+  ors:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: ors
+      ORS_API_KEY: ${ORS_API_KEY}
+    depends_on:
+      - rabbitmq
+  ferries:
+    image: 'localhost:32000/worker'
+    hostname: worker.docker.local
+    environment:
+      << : *default-config
+      WORKER_NAME: ferries
+    depends_on:
+      - rabbitmq

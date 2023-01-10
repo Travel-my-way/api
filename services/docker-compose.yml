@@ -1,0 +1,20 @@
+version: "3.8"
+
+volumes:
+  pgdata:
+
+services:
+  database:
+    image: 'postgis/postgis:13-3.1-alpine'
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD="pg_password"
+      - POSTGRES_USER="bonvoyage_usr"
+      - POSTGRES_DB="bonvoyage"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: 'bitnami/rabbitmq:latest'
+    environment:
+      - RABBITMQ_PLUGINS="rabbitmq_management"
