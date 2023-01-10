@@ -1,5 +1,5 @@
-from pydantic import BaseSettings, Field, RedisDsn, validator
-from typing import List
+from pydantic import BaseSettings, Field, RedisDsn
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -12,5 +12,7 @@ class Settings(BaseSettings):
     task_default_routing_key: str = "journey.all"
 
     # Workers
-    workers: List[str] = Field(..., env='WORKERS')
+    workers: str = Field(..., env='WORKERS')
 
+    class Config:
+        env_file = Path("..") / ".env"

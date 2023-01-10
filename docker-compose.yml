@@ -1,10 +1,13 @@
-version: "3.8"
+version: "3"
 
-# Common config
-x-config:
-  &default-config
-  CELERY_BROKER_URL: amqp://user:bitnami@rabbitmq:5672/
-  CELERY_RESULT_BACKEND: redis://redis:6379
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: ./worker/Dockerfile
+  env_file:
+    - "common.env"
+  depends_on:
+    - rabbitmq
 
 volumes:
   pgdata:
@@ -14,119 +17,69 @@ services:
     build:
       context: .
       dockerfile: ./api/Dockerfile
+    env_file:
+      - "common.env"
     environment:
-      << : *default-config
-      FLASK_APP: api.lbv:create_app('docker-compose')
-      WORKERS: blablacar,planes,kombo,ors
+      - WORKERS
     ports:
       - "8080:80"
-    networks:
-      - app_net
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
     restart: always
     environment:
-      POSTGRES_PASSWORD: pg_password
-      POSTGRES_USER: bonvoyage_usr
-      POSTGRES_DB: bonvoyage
+      - POSTGRES_PASSWORD=pg_password
+      - POSTGRES_USER=bonvoyage_usr
+      - POSTGRES_DB=bonvoyage
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - app_net
 
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
     environment:
-      RABBITMQ_PLUGINS: rabbitmq_management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - app_net
+      - RABBITMQ_PLUGINS=rabbitmq_management
 
   redis:
     image: 'bitnami/redis:latest'
     environment:
-      ALLOW_EMPTY_PASSWORD: 'yes'
-    ports:
-      - "6379:6379"
-    networks:
-      - app_net
-
-  flower:
-    image: 'mher/flower'
-    ports:
-      - "5555:5555"
-    environment:
-      << : *default-config
-      FLOWER_PURGE_OFFLINE_WORKERS: 1
-      FLOWER_BROKER_API: http://user:bitnami@rabbitmq:15672/api/
-    networks:
-      - app_net
+      - ALLOW_EMPTY_PASSWORD=yes
 
   broker:
     build:
       context: .
       dockerfile: ./broker/Dockerfile
-    hostname: broker.docker.local
+    env_file:
+      - "common.env"
     environment:
-      << : *default-config
-      NAVITIA_API_KEY: ${NAVITIA_API_KEY}
-      ORS_API_KEY: ${ORS_API_KEY}
+      - NAVITIA_API_KEY
+      - ORS_API_KEY
     depends_on:
       - rabbitmq
-    networks:
-      - app_net
 
   blablacar:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    hostname: worker.docker.local
+    <<: *worker
     environment:
-      << : *default-config
-      WORKER_NAME: blablacar
-      BLABLACAR_API_KEY: ${BLABLACAR_API_KEY}
-    depends_on:
-      - rabbitmq
-    networks:
-      - app_net
-  planes:
-    image: 'localhost:32000/worker'
-    hostname: worker.docker.local
-    environment:
-      << : *default-config
-      WORKER_NAME: planes
-    depends_on:
-      - rabbitmq
-    networks:
-      - app_net
-  # kombo:
-  #   image: 'localhost:32000/worker'
-  #   hostname: worker.docker.local
-  #   environment:
-  #     << : *default-config
-  #     WORKER_NAME: kombo
-  #     KOMBO_API_KEY: ${KOMBO_API_KEY}
-  #   depends_on:
-  #     - rabbitmq
-  ors:
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    hostname: worker.docker.local
-    environment:
-      << : *default-config
-      WORKER_NAME: ors
-      ORS_API_KEY: ${ORS_API_KEY}
-    depends_on:
-      - rabbitmq
-    networks:
-      - app_net
+      - WORKER_NAME=blablacar
+      - BLABLACAR_API_KEY
 
-networks:
-   app_net:
-      driver: bridge
+  planes:
+    <<: *worker
+    environment:
+      - WORKER_NAME=planes
+
+  kombo:
+    <<: *worker
+    environment:
+      - WORKER_NAME=kombo
+      - KOMBO_API_KEY
+
+  ors:
+    <<: *worker
+    environment:
+      - WORKER_NAME=ors
+      - ORS_API_KEY
+
+  ferries:
+    <<: *worker
+    environment:
+      - WORKER_NAME=ferries
