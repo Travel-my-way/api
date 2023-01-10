@@ -1,8 +1,7 @@
 version: "3.8"
 
 # Common config
-x-config:
-  &default-config
+x-config: &default-config
   - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq:5672/
   - CELERY_RESULT_BACKEND=redis://redis:6379
 
@@ -10,16 +9,17 @@ volumes:
   pgdata:
 
 services:
-  # api:
-  #   build:
-  #     context: .
-  #     dockerfile: ./api/Dockerfile
-  #   environment:
-  #     << : *default-config
-  #     - FLASK_APP=api.lbv:create_app('docker-compose')
-  #     - WORKERS=blablacar,planes,kombo,ors
-  #   ports:
-  #     - "8080:80"
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    environment:
+      - CELERY_BROKER_URL="amqp://user:bitnami@rabbitmq:5672/"
+      - CELERY_RESULT_BACKEND="redis://redis:6379"
+      - FLASK_APP=api.lbv:create_app('docker-compose')
+      - WORKERS=blablacar,planes,kombo,ors
+    ports:
+      - "8080:80"
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
@@ -58,12 +58,14 @@ services:
   #     FLOWER_BROKER_API: http://user:bitnami@rabbitmq:15672/api/
 
   # broker:
-  #   image: 'localhost:32000/broker'
-  #   hostname: broker.docker.local
+  #   build:
+  #     context: .
+  #     dockerfile: ./broker/Dockerfile
   #   environment:
-  #     << : *default-config
-  #     NAVITIA_API_KEY: ${NAVITIA_API_KEY}
-  #     ORS_API_KEY: ${ORS_API_KEY}
+  #     - CELERY_BROKER_URL="amqp://user:bitnami@rabbitmq:5672/"
+  #     - CELERY_RESULT_BACKEND="redis://redis:6379"
+  #     - NAVITIA_API_KEY=${NAVITIA_API_KEY:-default}
+  #     - ORS_API_KEY=${ORS_API_KEY:-default}
   #   depends_on:
   #     - rabbitmq
 
