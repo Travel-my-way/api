@@ -21,8 +21,6 @@ services:
       - "common.env"
     environment:
       - WORKERS
-    ports:
-      - "8080:80"
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
