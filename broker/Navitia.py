@@ -110,7 +110,7 @@ def navitia_query_directions(query, _id=0):
         # return step.json()
 
     else:
-        logger.warning(f"ERROR {step.status_code} from Navitia for {url}")
+        logger.warning(f"ERROR {step.status_code} from Navitia for {url}: {step.json()}")
         return None
 
 

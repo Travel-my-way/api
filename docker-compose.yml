@@ -17,9 +17,12 @@ services:
     build:
       context: .
       dockerfile: ./api/Dockerfile
+    env_file:
+      - "common.env"
     environment:
-      - FLASK_APP=api.lbv:create_app('docker-compose')
       - WORKERS
+    ports:
+      - "8080:80"
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
@@ -39,7 +42,7 @@ services:
   redis:
     image: 'bitnami/redis:latest'
     environment:
-      - ALLOW_EMPTY_PASSWORD='yes'
+      - ALLOW_EMPTY_PASSWORD=yes
 
   broker:
     build:
