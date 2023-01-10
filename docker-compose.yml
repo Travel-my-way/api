@@ -1,0 +1,82 @@
+version: "3"
+
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: ./worker/Dockerfile
+  env_file:
+    - "common.env"
+  depends_on:
+    - rabbitmq
+
+volumes:
+  pgdata:
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    environment:
+      - FLASK_APP=api.lbv:create_app('docker-compose')
+      - WORKERS
+
+  database:
+    image: 'postgis/postgis:13-3.1-alpine'
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=pg_password
+      - POSTGRES_USER=bonvoyage_usr
+      - POSTGRES_DB=bonvoyage
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: 'bitnami/rabbitmq:latest'
+    environment:
+      - RABBITMQ_PLUGINS=rabbitmq_management
+
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD='yes'
+
+  broker:
+    build:
+      context: .
+      dockerfile: ./broker/Dockerfile
+    env_file:
+      - "common.env"
+    environment:
+      - NAVITIA_API_KEY
+      - ORS_API_KEY
+    depends_on:
+      - rabbitmq
+
+  blablacar:
+    <<: *worker
+    environment:
+      - WORKER_NAME=blablacar
+      - BLABLACAR_API_KEY
+
+  planes:
+    <<: *worker
+    environment:
+      - WORKER_NAME=planes
+
+  kombo:
+    <<: *worker
+    environment:
+      - WORKER_NAME=kombo
+      - KOMBO_API_KEY
+
+  ors:
+    <<: *worker
+    environment:
+      - WORKER_NAME=ors
+      - ORS_API_KEY
+
+  ferries:
+    <<: *worker
+    environment:
+      - WORKER_NAME=ferries

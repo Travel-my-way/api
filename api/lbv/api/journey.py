@@ -20,4 +20,5 @@ class Journey(Resource):
         r = current_app.extensions["celery"].send_tasks(
             from_loc=args["from"], to_loc=args["to"], start_date=args["start"], nb_passenger=args["nb_passenger"]
         )
+        current_app.logger(r)
         return {"uuid": r.id}, 201
