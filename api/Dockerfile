@@ -9,7 +9,7 @@ ENV PYTHONFAULTHANDLER 1
 
 FROM base AS python-deps
 # Install pipenv and compilation dependencies
-RUN pip install --no-cache-dir pipenv=='2020.11.15' && apt-get update && apt-get install -y --no-install-recommends gcc=4:8.3.0-1
+RUN pip install --no-cache-dir pipenv=='2023.2.18' && apt-get update && apt-get install -y --no-install-recommends gcc=4:8.3.0-1
 
 # Install python dependencies in /.venv
 COPY Pipfile .

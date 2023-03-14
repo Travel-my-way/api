@@ -21,6 +21,7 @@ celery = {extras = ["auth", "py-amqp", "msgpack", "redis"],version = "==5.1.2"}
 uvicorn = {extras = ["standard"],version = "==0.20.0"}
 fastapi = "==0.89.1"
 loguru = "==0.6.0"
+pytz = "==2022.7.1"
 
 [requires]
 python_version = "3.8"
