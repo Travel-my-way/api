@@ -20,22 +20,22 @@ services:
     env_file:
       - "common.env"
     environment:
-      - WORKERS
+      WORKERS:
 
   database:
     image: 'postgis/postgis:13-3.1-alpine'
     restart: always
     environment:
-      - POSTGRES_PASSWORD=pg_password
-      - POSTGRES_USER=bonvoyage_usr
-      - POSTGRES_DB=bonvoyage
+      POSTGRES_PASSWORD: pg_password
+      POSTGRES_USER: bonvoyage_usr
+      POSTGRES_DB: bonvoyage
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   rabbitmq:
     image: 'bitnami/rabbitmq:latest'
     environment:
-      - RABBITMQ_PLUGINS=rabbitmq_management
+      RABBITMQ_PLUGINS: rabbitmq_management
 
   redis:
     image: 'bitnami/redis:latest'
@@ -49,8 +49,8 @@ services:
     env_file:
       - "common.env"
     environment:
-      - NAVITIA_API_KEY
-      - ORS_API_KEY
+      NAVITIA_API_KEY:
+      ORS_API_KEY:
     depends_on:
       - rabbitmq
 
