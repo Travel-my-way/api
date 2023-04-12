@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv sh
 export PYTHONPATH=${PYTHONPATH}:/home/appuser
+echo "$(cat /var/worker.env)"
 echo $WORKER_NAME
 /.venv/bin/python -m celery -A worker.${WORKER_NAME} worker --uid=appuser --hostname=${WORKER_NAME}@%h -l INFO
