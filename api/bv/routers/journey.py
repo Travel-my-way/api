@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Query
+from fastapi import APIRouter, Request, Depends, Form
 from typing import Union
 from api.bv import models
 from api.bv.celery import Client as Celery
@@ -8,10 +8,10 @@ router = APIRouter()
 
 @router.post("/journey", tags=["journey"])
 def post_journey(
-        origin=Query(default=None, alias="from"),
-        destination: Union[str, None] = Query(default=None, alias="to"),
-        start: Union[int, None] = Query(default=None),
-        nb_passenger: Union[int, None] = Query(default=None),
+        origin=Form(default=None, alias="from"),
+        destination: Union[str, None] = Form(default=None, alias="to"),
+        start: Union[int, None] = Form(default=None),
+        nb_passenger: Union[int, None] = Form(default=None),
         celery: Celery = Depends()):
     logger.info("Journey requested")
     journey = models.Journey(
