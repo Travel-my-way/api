@@ -57,19 +57,19 @@ services:
   blablacar:
     <<: *worker
     environment:
-      - WORKER_NAME=blablacar
-      - BLABLACAR_API_KEY
+      WORKER_NAME: blablacar
+      BLABLACAR_API_KEY:
 
   planes:
     <<: *worker
     environment:
-      - WORKER_NAME=planes
+      WORKER_NAME: planes
 
   kombo:
     <<: *worker
     environment:
-      - WORKER_NAME=kombo
-      - KOMBO_API_KEY
+      WORKER_NAME: kombo
+      KOMBO_API_KEY:
 
   ors:
     <<: *worker
@@ -77,8 +77,9 @@ services:
       - "./envs/ors:/var/worker"
     environment:
       WORKER_NAME: ors
+      ORS_API_KEY:
 
   ferries:
     <<: *worker
     environment:
-      - WORKER_NAME=ferries
+      WORKER_NAME: ferries
