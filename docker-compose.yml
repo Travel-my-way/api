@@ -74,7 +74,7 @@ services:
   ors:
     <<: *worker
     volumes:
-      - "envs/ors.env:/var/worker.env"
+      - "envs/ors:/var/worker"
     environment:
       - WORKER_NAME=ors
       - ORS_API_KEY
