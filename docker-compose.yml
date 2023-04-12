@@ -76,8 +76,7 @@ services:
     volumes:
       - "./envs/ors:/var/worker"
     environment:
-      - WORKER_NAME=ors
-      - ORS_API_KEY
+      WORKER_NAME: ors
 
   ferries:
     <<: *worker
