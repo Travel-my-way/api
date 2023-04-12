@@ -73,6 +73,8 @@ services:
 
   ors:
     <<: *worker
+    env_file:
+      - envs/ors.env
     environment:
       - WORKER_NAME=ors
       - ORS_API_KEY
